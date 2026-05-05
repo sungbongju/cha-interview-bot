@@ -159,6 +159,8 @@ export default function App() {
   const [surveyModesUsed, setSurveyModesUsed] = useState([])
   const modesUsedRef = useRef(new Set())   // 세션 동안 실제 사용된 모드 누적
   const userTurnCountRef = useRef(0)       // 사용자 발화 턴 수 (3턴 이상일 때만 설문 노출)
+  const lastEndedSessionIdRef = useRef(null) // 종료 직후 헤더 "설문" 버튼이 마지막 세션을 참조하도록 보존
+  const lastEndedModesRef = useRef([])
 
   const roomRef           = useRef(null)
   const sessionRef        = useRef(null)
@@ -607,6 +609,10 @@ export default function App() {
     setStatus('idle')
     setMessages([])           // 채팅 초기화 — 깔끔하게 다시 시작
 
+    // 종료 직후 헤더 "설문" 버튼이 방금 끝난 세션을 참조할 수 있도록 보존
+    if (endedSessionId) lastEndedSessionIdRef.current = endedSessionId
+    lastEndedModesRef.current = usedModes
+
     if (usedTurns >= 3) {
       setSurveySessionId(endedSessionId)
       setSurveyModesUsed(usedModes)
@@ -850,8 +856,12 @@ export default function App() {
         onLoginClick={() => setAuthOpen(true)}
         onLogout={handleLogout}
         onOpenSurvey={() => {
-          setSurveySessionId(sessionIdRef.current || null)
-          setSurveyModesUsed(Array.from(modesUsedRef.current))
+          const liveSid = sessionIdRef.current
+          const sid = liveSid || lastEndedSessionIdRef.current || null
+          const liveModes = Array.from(modesUsedRef.current)
+          const modes = liveModes.length ? liveModes : lastEndedModesRef.current
+          setSurveySessionId(sid)
+          setSurveyModesUsed(modes)
           setSurveyOpen(true)
         }}
       />
