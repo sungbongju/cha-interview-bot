@@ -38,9 +38,31 @@ function sanitizeResponse(data) {
       .trim();
   };
 
+  // TTS만 — 화면 표시(reply)는 URL/전화/이메일 그대로 두고,
+  // 음성으로는 읽지 않도록 자연어 표현으로 치환한다.
+  const stripContactsForTts = (text) => {
+    if (typeof text !== 'string') return text;
+    return text
+      // URL 전체 (https?://, www.)
+      .replace(/https?:\/\/[^\s)\]]+/gi, '학과 홈페이지')
+      .replace(/\bwww\.[^\s)\]]+/gi, '학과 홈페이지')
+      // 학교 대표 1899-XXXX
+      .replace(/\b1899[-\s]?\d{4}\b/g, '학교 대표 번호')
+      // 일반 한국 전화번호 (0XX-XXX(X)-XXXX)
+      .replace(/\b0\d{1,2}[-\s]?\d{3,4}[-\s]?\d{4}\b/g, '학과 사무실')
+      // 짧은 형 (XXX-XXXX)
+      .replace(/\b\d{3,4}[-\s]?\d{4}\b/g, '학과 사무실')
+      // 이메일 — 도메인까지 통째로
+      .replace(/[\w.+-]+@[\w-]+\.[\w.-]+/g, '학과 이메일')
+      // 괄호로 둘러싸인 빈 자리(원 문장이 "(URL)" 식이었을 때) 정리
+      .replace(/\(\s*[)]\s*\)/g, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+  };
+
   return {
     ...data,
     reply: replaceSensitiveTerms(data.reply),
-    ttsReply: replaceSensitiveTerms(data.ttsReply)
+    ttsReply: stripContactsForTts(replaceSensitiveTerms(data.ttsReply))
   };
 }
