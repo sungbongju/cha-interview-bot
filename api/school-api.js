@@ -5,8 +5,11 @@ const ALLOWED_ACTIONS = new Set([
   'kakao_login',
   'verify',
   'save_chat',
-  'save_survey'
+  'save_survey',
+  'survey_summary'
 ])
+
+const FORWARD_HEADERS = ['x-dashboard-token', 'authorization']
 
 // Disable Vercel's auto body parser so we can forward raw UTF-8 bytes intact.
 // The default parser was decoding Korean UTF-8 with the wrong charset, replacing
@@ -24,7 +27,7 @@ async function readRawBody(req) {
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Dashboard-Token')
   res.setHeader('Cache-Control', 'no-store')
 
   if (req.method === 'OPTIONS') return res.status(204).end()
@@ -38,9 +41,15 @@ export default async function handler(req, res) {
   try {
     const rawBody = await readRawBody(req)
 
+    const fwdHeaders = { 'Content-Type': 'application/json; charset=utf-8' }
+    for (const name of FORWARD_HEADERS) {
+      const v = req.headers?.[name]
+      if (v) fwdHeaders[name] = String(v)
+    }
+
     const upstream = await fetch(`${SCHOOL_API_BASE}?action=${encodeURIComponent(action)}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+      headers: fwdHeaders,
       body: rawBody
     })
 

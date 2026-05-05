@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>차의과학대 면담봇 — 신뢰 컴포넌트 설문 대시보드</title>
+<style>
+  :root {
+    --bg:#0e0f13; --panel:#171922; --border:#262833; --text:#e8eaf2; --muted:#8a8f9d;
+    --gold:#c9a27e; --gold-dim:#a07a59; --good:#10b981; --bad:#ef4444; --info:#6366f1;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; background:var(--bg); color:var(--text);
+    font-family:'Noto Sans KR','Segoe UI',Helvetica,Arial,sans-serif; line-height:1.5; }
+  header { padding:20px 28px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; }
+  header h1 { font-size:18px; margin:0; font-weight:700; letter-spacing:-0.3px; }
+  header .meta { font-size:12px; color:var(--muted); }
+  header .actions button { background:#1f2230; border:1px solid var(--border); color:var(--text); padding:6px 12px; border-radius:6px; font-family:inherit; font-size:12px; cursor:pointer; margin-left:6px; }
+  header .actions button:hover { background:#262a39; }
+  main { padding:24px 28px 56px; max-width:1280px; margin:0 auto; }
+
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:14px; margin-bottom:28px; }
+  .kpi { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px 18px; }
+  .kpi .label { font-size:12px; color:var(--muted); }
+  .kpi .value { font-size:28px; font-weight:700; margin-top:4px; letter-spacing:-0.5px; }
+  .kpi .sub { font-size:11px; color:var(--muted); margin-top:2px; }
+  .kpi .gold .value { color:var(--gold); }
+
+  .grid { display:grid; gap:18px; grid-template-columns:repeat(12, 1fr); }
+  .card { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:18px; }
+  .card h2 { font-size:14px; margin:0 0 12px; font-weight:600; color:var(--text); border-bottom:2px solid var(--gold); display:inline-block; padding-bottom:4px; }
+  .card .desc { font-size:11px; color:var(--muted); margin:0 0 12px; }
+  .col-12 { grid-column: span 12; } .col-8 { grid-column: span 8; } .col-6 { grid-column: span 6; } .col-4 { grid-column: span 4; }
+  @media (max-width: 900px) { .col-8, .col-6, .col-4 { grid-column: span 12; } }
+
+  table { width:100%; border-collapse:collapse; font-size:12px; }
+  th, td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--border); }
+  th { color:var(--muted); font-weight:500; font-size:11px; }
+  td.num { text-align:right; font-variant-numeric:tabular-nums; }
+
+  canvas { width:100% !important; height:auto !important; }
+
+  .empty { color:var(--muted); font-size:13px; padding:20px; text-align:center; }
+  .err { color:var(--bad); font-size:13px; padding:14px; background:#2a1517; border:1px solid #5a2228; border-radius:8px; margin-bottom:18px; }
+  .legend-bar { display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:6px; vertical-align:middle; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>신뢰 컴포넌트 설문 대시보드</h1>
+    <div class="meta" id="meta">로딩 중…</div>
+  </div>
+  <div class="actions">
+    <button id="btn-refresh" type="button">새로고침</button>
+    <button id="btn-token" type="button">토큰 변경</button>
+    <button id="btn-csv" type="button">집계 CSV</button>
+  </div>
+</header>
+
+<main>
+  <div id="err" class="err" style="display:none"></div>
+
+  <section class="kpis">
+    <div class="kpi gold"><div class="label">총 응답</div><div class="value" id="kpi-total">—</div><div class="sub" id="kpi-total-sub">flag_too_fast 포함</div></div>
+    <div class="kpi"><div class="label">유효 응답 (≥60초)</div><div class="value" id="kpi-valid">—</div><div class="sub">flag_too_fast=0</div></div>
+    <div class="kpi"><div class="label">전반 신뢰 Q24 Yes율</div><div class="value" id="kpi-q24">—</div><div class="sub">유효 응답 기준</div></div>
+    <div class="kpi"><div class="label">평균 총점 (0–18)</div><div class="value" id="kpi-total-score">—</div><div class="sub">total_yes_count</div></div>
+  </section>
+
+  <section class="grid">
+    <div class="card col-12">
+      <h2>18 컴포넌트별 Yes율</h2>
+      <p class="desc">각 컴포넌트에 "예"라고 답한 비율 (응답한 사람 기준 — 조건부 미응답 NULL 제외). 색은 Layer 분류.</p>
+      <canvas id="chart-components" height="420"></canvas>
+    </div>
+
+    <div class="card col-6">
+      <h2>4-Layer 평균 점수 (만점 대비 %)</h2>
+      <p class="desc">L1 정체성·L2 답변 품질·L3 자연스러움·L4 정책 신호.</p>
+      <canvas id="chart-layers" height="220"></canvas>
+    </div>
+
+    <div class="card col-6">
+      <h2>총점 분포 (0–18)</h2>
+      <p class="desc">total_yes_count 3점 단위 히스토그램.</p>
+      <canvas id="chart-hist" height="220"></canvas>
+    </div>
+
+    <div class="card col-6">
+      <h2>학년별</h2>
+      <table id="tbl-grade"><thead><tr><th>학년</th><th class="num">N</th><th class="num">평균 점수</th><th class="num">Q24 Yes %</th></tr></thead><tbody></tbody></table>
+    </div>
+
+    <div class="card col-6">
+      <h2>성별</h2>
+      <table id="tbl-gender"><thead><tr><th>성별</th><th class="num">N</th><th class="num">평균 점수</th><th class="num">Q24 Yes %</th></tr></thead><tbody></tbody></table>
+    </div>
+
+    <div class="card col-6">
+      <h2>1전공별</h2>
+      <table id="tbl-major"><thead><tr><th>전공</th><th class="num">N</th><th class="num">평균 점수</th><th class="num">Q24 Yes %</th></tr></thead><tbody></tbody></table>
+    </div>
+
+    <div class="card col-6">
+      <h2>MBTI별</h2>
+      <table id="tbl-mbti"><thead><tr><th>MBTI</th><th class="num">N</th><th class="num">평균 점수</th><th class="num">Q24 Yes %</th></tr></thead><tbody></tbody></table>
+    </div>
+
+    <div class="card col-12">
+      <h2>일별 응답 추이</h2>
+      <canvas id="chart-daily" height="180"></canvas>
+    </div>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>
+(function() {
+  const API_URL = 'https://cha-interview-bot.vercel.app/api/school-api?action=survey_summary';
+  const TOKEN_KEY = 'cha_dashboard_token';
+
+  const QLABEL = {
+    q06_digital_twin:'Q06 디지털 트윈', q07_institution_id:'Q07 기관 신원', q08_ai_disclosure:'Q08 AI 명시',
+    q09_rag_grounding:'Q09 RAG 사실성', q10_limit_admit:'Q10 한계 인정', q11_warm_tone:'Q11 따뜻한 말투', q12_format_consistency:'Q12 형식 일관성',
+    q13_latency_pacing:'Q13 응답 속도', q14_echo_guard:'Q14 에코 방어', q15_esc_interrupt:'Q15 인터럽트', q16_avatar_embodiment:'Q16 아바타 입동기', q17_mode_switch:'Q17 모드 전환',
+    q18_consent_ui:'Q18 동의 UI', q19_guest_browse:'Q19 비로그인 둘러보기', q20_korean_ordinal:'Q20 한글 서수', q21_visit_tracking:'Q21 방문 추적', q22_tts_normalize:'Q22 TTS 정규화', q23_kakao_redirect:'Q23 카카오 외부 전환',
+    q24_overall_trust:'Q24 전반 신뢰'
+  };
+  const Q_LAYER = {
+    q06_digital_twin:1, q07_institution_id:1, q08_ai_disclosure:1,
+    q09_rag_grounding:2, q10_limit_admit:2, q11_warm_tone:2, q12_format_consistency:2,
+    q13_latency_pacing:3, q14_echo_guard:3, q15_esc_interrupt:3, q16_avatar_embodiment:3, q17_mode_switch:3,
+    q18_consent_ui:4, q19_guest_browse:4, q20_korean_ordinal:4, q21_visit_tracking:4, q22_tts_normalize:4, q23_kakao_redirect:4,
+    q24_overall_trust:5
+  };
+  const LAYER_COLOR = { 1:'#ef4444', 2:'#f59e0b', 3:'#10b981', 4:'#6366f1', 5:'#c9a27e' };
+  const LAYER_NAME  = { 1:'Layer 1', 2:'Layer 2', 3:'Layer 3', 4:'Layer 4', 5:'전반' };
+
+  let charts = {};
+  let lastSummary = null;
+
+  function getToken() {
+    let t = sessionStorage.getItem(TOKEN_KEY);
+    if (!t) {
+      t = window.prompt('대시보드 토큰을 입력하세요 (학교 서버 .htaccess의 CHA_DASHBOARD_TOKEN 값):');
+      if (t) sessionStorage.setItem(TOKEN_KEY, t.trim());
+    }
+    return t;
+  }
+  function setError(msg) {
+    const el = document.getElementById('err');
+    if (msg) { el.textContent = msg; el.style.display = 'block'; }
+    else { el.textContent = ''; el.style.display = 'none'; }
+  }
+  function fmtPct(v) { return v == null ? '—' : v.toFixed(1) + '%'; }
+  function fmtNum(v, d) { return v == null ? '—' : (d != null ? v.toFixed(d) : v.toString()); }
+
+  async function load() {
+    setError('');
+    document.getElementById('meta').textContent = '로딩 중…';
+    const token = getToken();
+    if (!token) { setError('토큰이 없습니다.'); return; }
+    let r;
+    try {
+      r = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json', 'X-Dashboard-Token': token },
+        body: JSON.stringify({})
+      });
+    } catch (e) {
+      setError('네트워크 오류: ' + e.message);
+      document.getElementById('meta').textContent = '연결 실패';
+      return;
+    }
+    let data;
+    try { data = await r.json(); }
+    catch (e) {
+      setError('응답 파싱 실패: ' + e.message);
+      document.getElementById('meta').textContent = '응답 오류';
+      return;
+    }
+    if (!data || !data.success) {
+      const msg = data && data.error ? data.error : '알 수 없는 오류';
+      setError('서버 응답: ' + msg);
+      document.getElementById('meta').textContent = '오류: ' + msg;
+      if (msg.indexOf('token') >= 0) {
+        sessionStorage.removeItem(TOKEN_KEY);
+      }
+      return;
+    }
+    lastSummary = data;
+    render(data);
+  }
+
+  function render(d) {
+    document.getElementById('meta').textContent =
+      '갱신: ' + (d.as_of ? new Date(d.as_of).toLocaleString('ko-KR') : '—') +
+      '  ·  총 ' + d.total + '건 / 유효 ' + d.valid + '건';
+    document.getElementById('kpi-total').textContent = d.total;
+    document.getElementById('kpi-valid').textContent = d.valid;
+    const q24 = d.components && d.components.q24_overall_trust ? d.components.q24_overall_trust.yes_pct : null;
+    document.getElementById('kpi-q24').textContent = fmtPct(q24);
+    const tot = d.layers && d.layers.total ? d.layers.total.avg : null;
+    document.getElementById('kpi-total-score').textContent = fmtNum(tot, 2);
+
+    renderComponents(d.components);
+    renderLayers(d.layers);
+    renderHist(d.score_hist);
+    renderDemographics(d.demographics);
+    renderDaily(d.daily);
+  }
+
+  function destroyChart(key) { if (charts[key]) { charts[key].destroy(); delete charts[key]; } }
+
+  function renderComponents(comp) {
+    const order = Object.keys(QLABEL);
+    const labels = order.map(k => QLABEL[k]);
+    const values = order.map(k => comp[k] ? comp[k].yes_pct : null);
+    const colors = order.map(k => LAYER_COLOR[Q_LAYER[k]] || '#888');
+    const ns     = order.map(k => comp[k] ? comp[k].n : 0);
+    destroyChart('components');
+    charts.components = new Chart(document.getElementById('chart-components'), {
+      type: 'bar',
+      data: { labels, datasets: [{ data: values, backgroundColor: colors, borderRadius: 4 }] },
+      options: {
+        indexAxis: 'y',
+        scales: {
+          x: { min:0, max:100, ticks:{ color:'#aaa', callback: v => v+'%' }, grid:{ color:'#23252e' } },
+          y: { ticks:{ color:'#ccc', font:{ size:11 } }, grid:{ display:false } }
+        },
+        plugins: {
+          legend: { display:false },
+          tooltip: {
+            callbacks: {
+              label: ctx => {
+                const i = ctx.dataIndex;
+                const v = ctx.parsed.x;
+                return ' ' + (v == null ? 'NA' : v.toFixed(1) + '%') + '   (n=' + ns[i] + ', Layer ' + Q_LAYER[order[i]] + ')';
+              }
+            }
+          }
+        },
+        responsive: true, maintainAspectRatio: false
+      }
+    });
+  }
+
+  function renderLayers(L) {
+    if (!L) return;
+    const labels = ['L1 정체성','L2 답변 품질','L3 자연스러움','L4 정책 신호'];
+    const max = [L.L1?.max, L.L2?.max, L.L3?.max, L.L4?.max];
+    const avg = [L.L1?.avg, L.L2?.avg, L.L3?.avg, L.L4?.avg];
+    const pct = avg.map((a,i) => (a == null || !max[i]) ? null : Math.round(a * 100 / max[i] * 10)/10);
+    const colors = [LAYER_COLOR[1], LAYER_COLOR[2], LAYER_COLOR[3], LAYER_COLOR[4]];
+    destroyChart('layers');
+    charts.layers = new Chart(document.getElementById('chart-layers'), {
+      type:'bar',
+      data:{ labels, datasets:[{ data: pct, backgroundColor: colors, borderRadius:4 }] },
+      options:{
+        scales:{ y:{ min:0, max:100, ticks:{ color:'#aaa', callback:v=>v+'%' }, grid:{ color:'#23252e' } }, x:{ ticks:{ color:'#ccc' }, grid:{ display:false } } },
+        plugins:{
+          legend:{ display:false },
+          tooltip:{ callbacks:{ label: ctx => {
+            const i = ctx.dataIndex;
+            const a = avg[i] == null ? '—' : avg[i].toFixed(2);
+            return ' ' + a + ' / ' + max[i] + '  (' + (pct[i]==null?'—':pct[i]+'%') + ')';
+          } } }
+        },
+        responsive:true, maintainAspectRatio:false
+      }
+    });
+  }
+
+  function renderHist(hist) {
+    if (!hist || !hist.length) return;
+    const labels = hist.map(r => r.bucket_lo + '–' + (parseInt(r.bucket_lo)+2));
+    const data   = hist.map(r => parseInt(r.n));
+    destroyChart('hist');
+    charts.hist = new Chart(document.getElementById('chart-hist'), {
+      type:'bar',
+      data:{ labels, datasets:[{ data, backgroundColor: LAYER_COLOR[5], borderRadius:4 }] },
+      options:{
+        scales:{ y:{ beginAtZero:true, ticks:{ color:'#aaa', precision:0 }, grid:{ color:'#23252e' } }, x:{ ticks:{ color:'#ccc' }, grid:{ display:false } } },
+        plugins:{ legend:{ display:false } },
+        responsive:true, maintainAspectRatio:false
+      }
+    });
+  }
+
+  function renderDemographics(D) {
+    if (!D) return;
+    fillTable('tbl-grade', D.grade);
+    fillTable('tbl-gender', D.gender);
+    fillTable('tbl-major', D.major1);
+    fillTable('tbl-mbti', D.mbti);
+  }
+
+  function fillTable(id, rows) {
+    const tb = document.querySelector('#' + id + ' tbody');
+    tb.innerHTML = '';
+    if (!rows || !rows.length) {
+      tb.innerHTML = '<tr><td colspan="4" class="empty">데이터 없음</td></tr>';
+      return;
+    }
+    for (const r of rows) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + (r.k ?? '—') + '</td><td class="num">' + r.n + '</td><td class="num">' + (r.avg_total ?? '—') + '</td><td class="num">' + (r.q24_yes_pct == null ? '—' : r.q24_yes_pct + '%') + '</td>';
+      tb.appendChild(tr);
+    }
+  }
+
+  function renderDaily(daily) {
+    if (!daily || !daily.length) return;
+    const labels = daily.map(r => r.d);
+    const ns     = daily.map(r => parseInt(r.n));
+    const avgs   = daily.map(r => r.avg_total == null ? null : parseFloat(r.avg_total));
+    destroyChart('daily');
+    charts.daily = new Chart(document.getElementById('chart-daily'), {
+      data:{ labels,
+        datasets:[
+          { type:'bar',  label:'응답 수', data:ns, backgroundColor:'rgba(99,102,241,0.65)', yAxisID:'y' },
+          { type:'line', label:'평균 점수', data:avgs, borderColor:'#c9a27e', backgroundColor:'#c9a27e', yAxisID:'y1', tension:0.25, pointRadius:3 }
+        ]
+      },
+      options:{
+        scales:{
+          y:{  position:'left',  beginAtZero:true, ticks:{ color:'#aaa', precision:0 }, grid:{ color:'#23252e' } },
+          y1:{ position:'right', beginAtZero:true, max:18, ticks:{ color:'#aaa' }, grid:{ display:false } },
+          x: { ticks:{ color:'#ccc' }, grid:{ display:false } }
+        },
+        plugins:{ legend:{ labels:{ color:'#ccc' } } },
+        responsive:true, maintainAspectRatio:false
+      }
+    });
+  }
+
+  function exportCsv() {
+    if (!lastSummary) { alert('데이터 없음'); return; }
+    const rows = [];
+    rows.push(['section','key','field','value']);
+    rows.push(['summary','total','',lastSummary.total]);
+    rows.push(['summary','valid','',lastSummary.valid]);
+    for (const [k, v] of Object.entries(lastSummary.components || {})) {
+      rows.push(['component', k, 'n', v.n]);
+      rows.push(['component', k, 'yes', v.yes]);
+      rows.push(['component', k, 'yes_pct', v.yes_pct]);
+    }
+    for (const [k, v] of Object.entries(lastSummary.layers || {})) {
+      rows.push(['layer', k, 'avg', v.avg]);
+      rows.push(['layer', k, 'max', v.max]);
+    }
+    const blob = new Blob(['﻿' + rows.map(r => r.map(c => '"'+String(c==null?'':c).replace(/"/g,'""')+'"').join(',')).join('\n')], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'cha-survey-summary-' + new Date().toISOString().slice(0,10) + '.csv';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  document.getElementById('btn-refresh').addEventListener('click', load);
+  document.getElementById('btn-token').addEventListener('click', () => {
+    sessionStorage.removeItem(TOKEN_KEY);
+    load();
+  });
+  document.getElementById('btn-csv').addEventListener('click', exportCsv);
+
+  load();
+})();
+</script>
+</body>
+</html>

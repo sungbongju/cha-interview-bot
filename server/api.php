@@ -90,6 +90,9 @@ switch ($action) {
     case 'save_survey':
         handleSaveSurvey($pdo, $input);
         break;
+    case 'survey_summary':
+        handleSurveySummary($pdo, $input);
+        break;
     default:
         echo json_encode(array('success' => false, 'error' => 'Unknown action: ' . $action));
 }
@@ -400,5 +403,90 @@ function handleSaveSurvey($pdo, $input) {
     } catch (PDOException $e) {
         error_log('[save_survey] ' . $e->getMessage());
         echo json_encode(array('success' => false, 'error' => 'survey save failed'));
+    }
+}
+
+// ─── Survey Summary (대시보드용 집계만; raw 응답·자유응답 텍스트는 반환하지 않음) ───
+function handleSurveySummary($pdo, $input) {
+    $expected = getenv('CHA_DASHBOARD_TOKEN') ?: '';
+    if (empty($expected)) {
+        echo json_encode(array('success' => false, 'error' => 'dashboard token not configured'));
+        return;
+    }
+    $provided = '';
+    if (isset($_SERVER['HTTP_X_DASHBOARD_TOKEN'])) $provided = $_SERVER['HTTP_X_DASHBOARD_TOKEN'];
+    if (!$provided && isset($input['dashboard_token'])) $provided = $input['dashboard_token'];
+    if (!hash_equals($expected, $provided)) {
+        echo json_encode(array('success' => false, 'error' => 'invalid dashboard token'));
+        return;
+    }
+
+    $components = array(
+        'q06_digital_twin','q07_institution_id','q08_ai_disclosure',
+        'q09_rag_grounding','q10_limit_admit','q11_warm_tone','q12_format_consistency',
+        'q13_latency_pacing','q14_echo_guard','q15_esc_interrupt','q16_avatar_embodiment','q17_mode_switch',
+        'q18_consent_ui','q19_guest_browse','q20_korean_ordinal','q21_visit_tracking','q22_tts_normalize','q23_kakao_redirect',
+        'q24_overall_trust'
+    );
+
+    try {
+        // 총 / 유효(=flag_too_fast=0)
+        $totals = $pdo->query('SELECT COUNT(*) AS total, SUM(flag_too_fast=0) AS valid FROM survey_responses')->fetch();
+
+        // 컴포넌트별 (NULL 제외 = 응답한 사람만 집계)
+        $comp = array();
+        foreach ($components as $c) {
+            $row = $pdo->query("SELECT COUNT($c) AS n, SUM($c=1) AS yes FROM survey_responses WHERE flag_too_fast=0")->fetch();
+            $n = (int)$row['n']; $yes = (int)$row['yes'];
+            $comp[$c] = array(
+                'n'       => $n,
+                'yes'     => $yes,
+                'no'      => $n - $yes,
+                'yes_pct' => $n > 0 ? round($yes * 100.0 / $n, 1) : null
+            );
+        }
+
+        // Layer 평균 (만점 대비 %)
+        $layers_row = $pdo->query('SELECT AVG(layer1_score) AS a1, AVG(layer2_score) AS a2, AVG(layer3_score) AS a3, AVG(layer4_score) AS a4, AVG(total_yes_count) AS at FROM survey_responses WHERE flag_too_fast=0')->fetch();
+        $layers = array(
+            'L1' => array('avg' => $layers_row['a1'] !== null ? round($layers_row['a1'], 2) : null, 'max' => 3),
+            'L2' => array('avg' => $layers_row['a2'] !== null ? round($layers_row['a2'], 2) : null, 'max' => 4),
+            'L3' => array('avg' => $layers_row['a3'] !== null ? round($layers_row['a3'], 2) : null, 'max' => 5),
+            'L4' => array('avg' => $layers_row['a4'] !== null ? round($layers_row['a4'], 2) : null, 'max' => 6),
+            'total' => array('avg' => $layers_row['at'] !== null ? round($layers_row['at'], 2) : null, 'max' => 18)
+        );
+
+        // 인구통계 분포 (각 그룹별 응답 수 + 평균 점수)
+        $by = function($pdo, $col) {
+            $stmt = $pdo->query("SELECT $col AS k, COUNT(*) AS n, ROUND(AVG(total_yes_count),2) AS avg_total, ROUND(AVG(q24_overall_trust)*100,1) AS q24_yes_pct FROM survey_responses WHERE flag_too_fast=0 AND $col IS NOT NULL GROUP BY $col ORDER BY n DESC");
+            return $stmt->fetchAll();
+        };
+        $demographics = array(
+            'grade'  => $by($pdo, 'grade'),
+            'gender' => $by($pdo, 'gender'),
+            'mbti'   => $by($pdo, 'mbti'),
+            'major1' => $by($pdo, 'major1'),
+        );
+
+        // 일별 추이
+        $daily = $pdo->query("SELECT DATE(submitted_at) AS d, COUNT(*) AS n, ROUND(AVG(total_yes_count),2) AS avg_total FROM survey_responses WHERE flag_too_fast=0 GROUP BY DATE(submitted_at) ORDER BY d")->fetchAll();
+
+        // 점수 분포 (총점 0~18 히스토그램, 3점 단위 구간)
+        $hist = $pdo->query("SELECT FLOOR(total_yes_count/3)*3 AS bucket_lo, COUNT(*) AS n FROM survey_responses WHERE flag_too_fast=0 GROUP BY bucket_lo ORDER BY bucket_lo")->fetchAll();
+
+        echo json_encode(array(
+            'success'      => true,
+            'as_of'        => date('c'),
+            'total'        => (int)$totals['total'],
+            'valid'        => (int)$totals['valid'],
+            'components'   => $comp,
+            'layers'       => $layers,
+            'demographics' => $demographics,
+            'daily'        => $daily,
+            'score_hist'   => $hist
+        ), JSON_UNESCAPED_UNICODE);
+    } catch (PDOException $e) {
+        error_log('[survey_summary] ' . $e->getMessage());
+        echo json_encode(array('success' => false, 'error' => 'survey summary failed'));
     }
 }
