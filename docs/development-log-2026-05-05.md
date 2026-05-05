@@ -855,6 +855,143 @@ function Message({ msg }) {
 
 ---
 
-## 11. 변경 이력
+## 11. 대시보드 USAGE 섹션 추가 (Phase A — 사용자 정보 및 활동 통계)
+
+기존 대시보드(`survey_summary` 한 액션)는 신뢰 컴포넌트 설문 결과만 보여줬다. 박대근 교수님이 "사용자 정보·접속자·세션 체류" 같은 운영 지표도 한 화면에서 보길 원하셨고, 김종석 교수님 동의 UI가 아직이라는 정책 제약을 감안해 **PII 노출 0인 집계 통계만** 추가하는 Phase A를 진행했다.
+
+### 11.1 새 액션 — `usage_summary`
+
+`server/api.php`에 `handleUsageSummary` 추가. `survey_summary`와 동일한 `X-Dashboard-Token` 게이트(timing-safe XOR, PHP 5.4 호환). 채팅 메시지 본문, 이메일·카카오id는 응답에 포함하지 않는다.
+
+응답 구조:
+
+```json
+{
+  "success": true, "as_of": "...",
+  "totals": {
+    "users_total":16, "users_kakao":12, "users_email":4,
+    "sessions_total":133, "messages_total":489,
+    "user_messages":183, "bot_messages":306,
+    "anon_messages":53, "anon_sessions":17
+  },
+  "session_avg": { "seconds":119.4, "minutes":1.99, "turns":2.23 },
+  "signups":  [{ "d":"2026-05-02","n":4 }, ...],
+  "activity": [{ "d":"2026-05-02","sessions":6,"active_users":4 }, ...],
+  "turn_hist": { "bin_1":..,"bin_2":..,"bin_3":..,"bin_4_5":..,"bin_6_10":..,"bin_11p":.. },
+  "hourly":   [{ "h":0,"n":.. }, ...],
+  "revisit":  [{ "vc":1,"n":.. }, ...],
+  "top_users": [
+    { "id":5, "name":"박대근", "login_type":"kakao",
+      "visit_count":7, "last_login":"2026-05-05 00:29:42",
+      "msgs":141, "user_msgs":54, "sessions":37 }, ...
+  ]
+}
+```
+
+### 11.2 SQL — 집계 쿼리
+
+| 지표 | 쿼리 |
+|---|---|
+| 총합 KPI | 9개 단일값 (users 3종, sessions, messages 4종, anonymous 2종) — `(SELECT COUNT...)` UNION 형태 한 줄 |
+| 평균 세션 체류 | `AVG(TIMESTAMPDIFF(SECOND, MIN, MAX) GROUP BY session_id HAVING COUNT(*)>=2)` |
+| 평균 사용자 턴 | `AVG(SUM(role='user') GROUP BY session_id)` |
+| 일별 신규 가입 | `users GROUP BY DATE(created_at)` |
+| 일별 활성 | `chat_logs GROUP BY DATE(created_at)` — sessions distinct + active user_id distinct |
+| 세션 턴 히스토그램 | `chat_logs GROUP BY session_id` 한 번 → 외부에서 `SUM(CASE)` 6개 bin |
+| 시간대 분포 | `WHERE role='user' GROUP BY HOUR(created_at)` |
+| 재방문 분포 | `users GROUP BY visit_count` |
+| Top 10 사용자 | `users` + `chat_logs.user_id` 서브쿼리 — 메시지 수 desc 10건 |
+
+`Top users`에서 **이메일·kakao_id는 SELECT 절에서 제외** — `name`, `login_type` 태그(kakao/email/other), 활동 카운트만 노출.
+
+### 11.3 Vercel 프록시 (`api/school-api.js`)
+
+`ALLOWED_ACTIONS`에 `usage_summary` 추가만. 기존 `X-Dashboard-Token` forward 그대로 동작.
+
+### 11.4 프론트 (`public/dashboard/index.html`)
+
+#### 페이지 구조 — 두 섹션으로 분리
+
+```
+┌─ topbar (sticky) ───────────────────────────────────────┐
+│  ● CHA / USAGE + TRUST.SURVEY / DASHBOARD v2            │
+└─────────────────────────────────────────────────────────┘
+┌─ USAGE 섹션 (라임 좌측 바) ──────────────────────────────┐
+│  KPI 4개:  users_total / sessions_total /                │
+│           messages_total / avg_session_duration          │
+│  CHARTS:                                                 │
+│   - DAILY ACTIVITY (신규 가입 bar + 활성 line + 세션 line)│
+│   - SESSION TURN DIST (1/2/3/4-5/6-10/11+)              │
+│   - HOURLY USAGE (0-23시)                                │
+│   - SIGNUP TYPE 도넛 (카카오/이메일/익명세션)              │
+│   - REVISIT DISTRIBUTION (visit_count)                   │
+│  TABLE: TOP USERS — id/name/type/msgs/user_msgs/         │
+│         sessions/visits/last_login                       │
+└─────────────────────────────────────────────────────────┘
+┌─ TRUST SURVEY 섹션 (시안 좌측 바) ────────────────────────┐
+│  KPI 4개 + 18 컴포넌트 + 4-Layer + 일별 추이 + 인구통계    │
+└─────────────────────────────────────────────────────────┘
+```
+
+#### 데이터 로드
+
+`Promise.all([callApi('usage_summary'), callApi('survey_summary')])`로 병렬 호출. 한쪽이라도 실패하면 전체 에러 표시.
+
+#### KPI 카드 디자인
+
+기존 사이버 브루탈 팔레트 유지 — `data-c="lime|cyan|mag|gold|plum|orange"` 좌측 액센트 바 + `[U-01]` / `[S-01]` 인덱스. USAGE는 `[U-01]~[U-04]`, SURVEY는 `[S-01]~[S-04]`로 구분.
+
+#### Top Users 테이블
+
+- `login-tag` 클래스로 `kakao` (골드 톤) / `email` (시안 톤) 구분 chip
+- `last_login` 한국 로케일 포맷 (`toLocaleString('ko-KR', { dateStyle: 'short', timeStyle: 'short' })`)
+- 호버 시 lime 틴트 (`tr:hover td`)
+
+### 11.5 운영 배포
+
+1. 로컬에서 `server/api.php` 수정 (handleUsageSummary 추가, switch case 추가)
+2. `pscp -P 10022 -hostkey SHA256:tEO+v8Z585KLBFzpmFfsT/Lo0VnNAPO8xCA4nJDLlL8 -batch -pw 'user2!!' server/api.php user2@aiforalab.com:/tmp/api_v2_usage.php`
+3. SSH로 백업 (`api.php.bak.usage-<timestamp>`) → `cp /tmp/api_v2_usage.php /var/www/html/interview-api/api.php`
+4. `php -l` syntax check → No syntax errors
+5. 토큰 없는 cURL → `{"success":false,"error":"invalid dashboard token"}` (가드 정상)
+6. 정상 토큰 cURL → 풍부한 집계 JSON (16 users, 133 sessions, 489 messages 등)
+
+학교 PHP는 매 요청마다 재해석되므로 Apache reload 불필요.
+
+### 11.6 대시보드 v2 검증 결과 (실제 운영 응답)
+
+| 메트릭 | 값 |
+|---|---|
+| users_total | 16 (카카오 12 / 이메일 4) |
+| sessions_total | 133 (익명 17 포함) |
+| messages_total | 489 (user 183 / bot 306) |
+| 익명 메시지 | 53건 |
+| 평균 세션 체류 | **1.99분** (turns ≥ 2 세션 대상) |
+| 평균 사용자 턴 | **2.23회** |
+| 일별 신규 가입 | 5/2:4 / 5/3:1 / 5/4:6 / 5/5:5 |
+
+### 11.7 정책 — 채팅 메시지 본문은 노출 안 함
+
+- 메시지 카운트·시각만 노출
+- 이메일·kakao_id는 응답에 포함 안 함 (이름과 login_type 태그까지만)
+- 자유응답 텍스트는 `survey_summary`에서도 반환 안 함 (이미 적용)
+- 향후 채팅 본문을 운영자가 보려면 — (a) 김종석 교수 피드백 반영해 회원가입 동의에 "운영진은 품질 개선·연구 목적으로 채팅 내용을 익명 열람할 수 있다" 명시, (b) admin 권한 시스템 (`users.role`) 도입, (c) 누가 언제 무엇을 봤는지 audit log
+
+이 세 가지가 갖춰진 뒤 Phase B/C로 진행 (현재는 Phase A로 마침).
+
+### 11.8 관련 파일
+
+- 백엔드: [server/api.php](server/api.php) — `handleUsageSummary`
+- 프록시: [api/school-api.js](api/school-api.js) — allowlist
+- 프론트: [public/dashboard/index.html](public/dashboard/index.html) — v2
+
+### 11.9 commit
+
+`abc1fb7 feat(dashboard): usage stats panel — users, sessions, activity (no PII)` — 3 files changed, 492 insertions.
+
+---
+
+## 12. 변경 이력
 
 - 2026-05-05 (오늘) — 본 문서 v1. 운영 카카오 로그인 복구, 신뢰 컴포넌트 설문 v1 구축, 대시보드 출시, RAG 학과 컨택 보강, HeyGen 발음 정립, 컨택 카드 UI 도입까지 일괄 정리.
+- 2026-05-05 (저녁 후속) — v1.1. 대시보드 USAGE 섹션(Phase A) 추가 — `usage_summary` 액션 + KPI 4개 + 차트 5개 + Top Users 표. PII 노출 0 정책 명시.

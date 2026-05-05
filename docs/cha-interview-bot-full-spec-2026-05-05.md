@@ -1,7 +1,7 @@
 # 차의과학대 면담봇 — 전체 기능·DB·인프라 종합 명세 (2026-05-05 시점)
 
 > 이 문서는 cha-interview-bot 프로젝트의 **모든 기능, 데이터베이스, 인프라, 학과 연동, 피드백 반영 이력**을 한 문서에 모아둔 종합 명세서입니다.
-> 작성일 기준 운영본은 [https://cha-interview-bot.vercel.app/](https://cha-interview-bot.vercel.app/) 이고 master 브랜치 최신 commit `703ec6d` (또는 그 이후) 입니다.
+> 작성일 기준 운영본은 [https://cha-interview-bot.vercel.app/](https://cha-interview-bot.vercel.app/) 이고 master 브랜치 최신 commit `abc1fb7` (또는 그 이후) 입니다.
 
 ---
 
@@ -258,6 +258,7 @@ POST /interview-api/api.php?action=<액션>
 | `list_chats` | `handleListChats` | JWT 보유자 (본인 로그만) |
 | `save_survey` | `handleSaveSurvey` | 누구나 (익명 허용, 토큰 있으면 user_id 매핑) |
 | `survey_summary` | `handleSurveySummary` | `X-Dashboard-Token` 헤더 (CHA_DASHBOARD_TOKEN env와 timing-safe 비교) |
+| `usage_summary`  | `handleUsageSummary`  | 동일한 `X-Dashboard-Token` 게이트. **PII 노출 0** — 메시지 본문·이메일·kakao_id는 반환 안 함, 카운트와 메타만 |
 
 ### 5.2 환경변수 (`/var/www/html/interview-api/.htaccess` 의 `SetEnv`)
 
@@ -542,13 +543,38 @@ HeyGen은 단순 TTS 엔진 — 우리가 보낸 `ttsReply` 문자열을 그대�
 | 차트 색 | L1 핫핑크 / L2 오렌지 / L3 라임 / L4 시안 / 전반 골드 |
 | 마커 | `//`, `>>`, `[01]` 코드틱 |
 
-### 9.4 표시 항목
+### 9.4 표시 항목 (v2 — 두 섹션)
 
-1. **KPI 4개** — 총응답 / 유효응답(≥60s) / Q24 Yes율 / 평균 총점(0-18)
-2. **18 컴포넌트별 Yes율** — 가로 막대, Layer 색 구분
-3. **4-Layer 평균 점수** — 만점 대비 %
-4. **일별 응답 추이** — 응답 수 막대 + 평균 점수 라인 (이중 축)
-5. **인구통계 분포** — 학년·성별·1전공·MBTI 4표
+대시보드는 **두 개의 섹션**으로 구성. 페이지 로드 시 `usage_summary` + `survey_summary`를 `Promise.all`로 병렬 호출.
+
+#### USAGE 섹션 (라임 좌측 바 / 사용 현황)
+
+| 영역 | 내용 |
+|---|---|
+| **KPI 4개** | users_total (카카오/이메일 분해) / sessions_total (익명 세션·메시지 카운트) / messages_total (user/bot 분해) / avg_session_duration (평균 사용자 턴 수 포함) |
+| DAILY ACTIVITY | 신규 가입 막대 + 활성 사용자 라인 + 세션 수 라인 (이중 축 한 차트에 3 시리즈) |
+| SESSION TURN DISTRIBUTION | 사용자 턴 수 분포 — 1 / 2 / 3 / 4-5 / 6-10 / 11+ 막대 |
+| HOURLY USAGE | 0-23시 사용자 발화 수 막대 |
+| SIGNUP TYPE | 카카오 / 이메일 / 익명 세션 도넛 |
+| REVISIT DISTRIBUTION | `users.visit_count` 분포 막대 |
+| **TOP USERS** 표 | id / name / login_type 태그(kakao/email) / messages / user_msgs / sessions / visits / last_login. **이메일·kakao_id는 비공개** |
+
+#### TRUST SURVEY 섹션 (시안 좌측 바 / 신뢰 설문)
+
+| 영역 | 내용 |
+|---|---|
+| **KPI 4개** | total_responses / valid_responses(≥60s) / Q24 Yes율 / 평균 총점(0-18) |
+| 18 컴포넌트별 Yes율 | 가로 막대, Layer 색 구분 |
+| 4-Layer 평균 점수 | L1-L4 만점 대비 % |
+| 일별 응답 추이 | 응답 수 막대 + 평균 점수 라인 (이중 축) |
+| 인구통계 분포 | 학년·성별·1전공·MBTI 4표 |
+
+### 9.4.1 PII 노출 정책
+
+- **채팅 메시지 본문은 한 글자도 노출 안 함** — 카운트와 시각만
+- **이메일·kakao_id 자체는 비공개** — 이름과 `login_type` 태그(kakao/email)까지만
+- 자유응답(Q25/Q26) 텍스트도 `survey_summary`에서 반환 안 함
+- 향후 운영자가 raw 채팅을 보려면 (a) 카카오/이메일 가입 동의서에 "운영진 익명 열람" 명시 + (b) admin 권한 시스템(`users.role`) + (c) audit log 구축이 선행되어야 함
 
 ### 9.5 데이터 흐름
 
@@ -888,6 +914,7 @@ FROM survey_responses WHERE flag_too_fast=0 GROUP BY major1;
 - **2026-05-05 17:30** 컨택 카드 UI (tel:/mailto:/외부링크) 도입. 매핑 오류 fix.
 - **2026-05-05 17:45** 안내문 두 번 반복 fix. 11/11 학과 자동 검증 완료.
 - **2026-05-05 18:00** 본 종합 명세 문서 v1 작성.
+- **2026-05-05 18:20** 대시보드 v2 — USAGE 섹션 추가 (`usage_summary` 액션). 사용자/세션/메시지 집계, 일별 활성, 세션 턴 분포, 시간대 분포, 가입 종류 도넛, 재방문 분포, Top 10 사용자 표. PII 노출 0 정책 유지. commit `abc1fb7`.
 
 ---
 
