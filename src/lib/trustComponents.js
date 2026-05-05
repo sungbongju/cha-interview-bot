@@ -48,7 +48,7 @@ export const TRUST_QUESTIONS = [
   { code: 'q20_korean_ordinal',     layer: 4, num: 20, text: '봇이 "첫번째 방문을 환영합니다"처럼 자연스러운 한국어 표현으로 인사하는 점이 좋았다.' },
   { code: 'q21_visit_tracking',     layer: 4, num: 21, text: '봇이 내 방문 횟수를 기억하고 인사하는 것이 친근하게 느껴졌다.', condition: 'revisit', conditionLabel: '2회 이상 방문한 경우에만' },
   { code: 'q22_tts_normalize',      layer: 4, num: 22, text: '봇이 영어 약어(AI, GPT 등)를 한국어 발음으로 자연스럽게 읽었다.', condition: 'voice', conditionLabel: '음성/영상 모드를 사용한 경우에만' },
-  { code: 'q23_kakao_redirect',     layer: 4, num: 23, text: '카카오톡에서 링크를 눌렀을 때 외부 브라우저로 자동 전환되어 편했다.', condition: 'kakao', conditionLabel: '카카오톡으로 접속한 경우에만' },
+  { code: 'q23_kakao_redirect',     layer: 4, num: 23, text: '카카오톡에서 링크를 눌렀을 때 외부 브라우저로 자동 전환되어 편했다.' },
 ]
 
 export const OVERALL_QUESTION = {
