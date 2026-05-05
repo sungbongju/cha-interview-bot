@@ -93,6 +93,9 @@ switch ($action) {
     case 'survey_summary':
         handleSurveySummary($pdo, $input);
         break;
+    case 'usage_summary':
+        handleUsageSummary($pdo, $input);
+        break;
     default:
         echo json_encode(array('success' => false, 'error' => 'Unknown action: ' . $action));
 }
@@ -495,5 +498,129 @@ function handleSurveySummary($pdo, $input) {
     } catch (PDOException $e) {
         error_log('[survey_summary] ' . $e->getMessage());
         echo json_encode(array('success' => false, 'error' => 'survey summary failed'));
+    }
+}
+
+// ─── Usage Summary (사용자/세션/메시지 집계 — 채팅 본문은 노출하지 않음) ───
+function handleUsageSummary($pdo, $input) {
+    // survey_summary와 동일한 dashboard token 게이트 사용
+    $expected = getenv('CHA_DASHBOARD_TOKEN') ?: '';
+    if (empty($expected)) {
+        echo json_encode(array('success' => false, 'error' => 'dashboard token not configured'));
+        return;
+    }
+    $provided = '';
+    if (isset($_SERVER['HTTP_X_DASHBOARD_TOKEN'])) $provided = $_SERVER['HTTP_X_DASHBOARD_TOKEN'];
+    if (!$provided && isset($input['dashboard_token'])) $provided = $input['dashboard_token'];
+    $eq = false;
+    if (strlen($expected) === strlen($provided)) {
+        $r = 0;
+        for ($i = 0; $i < strlen($expected); $i++) $r |= ord($expected[$i]) ^ ord($provided[$i]);
+        $eq = ($r === 0);
+    }
+    if (!$eq) {
+        echo json_encode(array('success' => false, 'error' => 'invalid dashboard token'));
+        return;
+    }
+
+    try {
+        // 1) Totals KPI
+        $totals = $pdo->query("
+            SELECT
+              (SELECT COUNT(*) FROM users) AS users_total,
+              (SELECT COUNT(*) FROM users WHERE kakao_id IS NOT NULL) AS users_kakao,
+              (SELECT COUNT(*) FROM users WHERE password_hash IS NOT NULL) AS users_email,
+              (SELECT COUNT(DISTINCT session_id) FROM chat_logs) AS sessions_total,
+              (SELECT COUNT(*) FROM chat_logs) AS messages_total,
+              (SELECT COUNT(*) FROM chat_logs WHERE role='user') AS user_messages,
+              (SELECT COUNT(*) FROM chat_logs WHERE role='assistant') AS bot_messages,
+              (SELECT COUNT(*) FROM chat_logs WHERE user_id IS NULL) AS anon_messages,
+              (SELECT COUNT(DISTINCT session_id) FROM chat_logs WHERE user_id IS NULL) AS anon_sessions
+        ")->fetch();
+
+        // 2) 평균 세션 체류 시간 (분)
+        $sessAvg = $pdo->query("
+            SELECT AVG(secs) AS avg_seconds, AVG(turns) AS avg_turns
+            FROM (
+              SELECT session_id, TIMESTAMPDIFF(SECOND, MIN(created_at), MAX(created_at)) AS secs,
+                     SUM(role='user') AS turns
+              FROM chat_logs
+              GROUP BY session_id
+              HAVING COUNT(*) >= 2
+            ) t
+        ")->fetch();
+
+        // 3) 일별 신규 가입 + 일별 활성(채팅 보낸 사람) — 두 시리즈 별도 산출 후 클라가 합치도록 한 배열로
+        $signups = $pdo->query("SELECT DATE(created_at) AS d, COUNT(*) AS n FROM users GROUP BY DATE(created_at) ORDER BY d")->fetchAll();
+        $activity = $pdo->query("SELECT DATE(created_at) AS d, COUNT(DISTINCT session_id) AS sessions, COUNT(DISTINCT user_id) AS active_users FROM chat_logs GROUP BY DATE(created_at) ORDER BY d")->fetchAll();
+
+        // 4) 세션당 사용자 턴 분포
+        $turnHist = $pdo->query("
+            SELECT
+              SUM(turns=1)              AS bin_1,
+              SUM(turns=2)              AS bin_2,
+              SUM(turns=3)              AS bin_3,
+              SUM(turns BETWEEN 4 AND 5) AS bin_4_5,
+              SUM(turns BETWEEN 6 AND 10) AS bin_6_10,
+              SUM(turns >= 11)          AS bin_11p
+            FROM (SELECT session_id, SUM(role='user') AS turns FROM chat_logs GROUP BY session_id) t
+        ")->fetch();
+
+        // 5) 시간대 (KST 기준 0-23)
+        $hourly = $pdo->query("SELECT HOUR(created_at) AS h, COUNT(*) AS n FROM chat_logs WHERE role='user' GROUP BY HOUR(created_at) ORDER BY h")->fetchAll();
+
+        // 6) 재방문 분포 (visit_count)
+        $revisit = $pdo->query("SELECT visit_count AS vc, COUNT(*) AS n FROM users GROUP BY visit_count ORDER BY vc")->fetchAll();
+
+        // 7) 가입 종류 분포 — 이미 totals에서 산출됨
+
+        // 8) 사용자 활동 Top 10 (id + 이름 + 로그인 종류 + 메시지/세션/방문/마지막 로그인)
+        //    이메일/kakao_id는 노출하지 않음 (PII 최소화)
+        $topUsers = $pdo->query("
+            SELECT
+              u.id,
+              u.name,
+              CASE WHEN u.kakao_id IS NOT NULL THEN 'kakao'
+                   WHEN u.email IS NOT NULL THEN 'email'
+                   ELSE 'other' END AS login_type,
+              u.visit_count,
+              u.last_login,
+              (SELECT COUNT(*) FROM chat_logs c WHERE c.user_id=u.id) AS msgs,
+              (SELECT COUNT(*) FROM chat_logs c WHERE c.user_id=u.id AND c.role='user') AS user_msgs,
+              (SELECT COUNT(DISTINCT session_id) FROM chat_logs c WHERE c.user_id=u.id) AS sessions
+            FROM users u
+            ORDER BY (SELECT COUNT(*) FROM chat_logs c WHERE c.user_id=u.id) DESC
+            LIMIT 10
+        ")->fetchAll();
+
+        echo json_encode(array(
+            'success'  => true,
+            'as_of'    => date('c'),
+            'totals'   => array(
+                'users_total'    => (int)$totals['users_total'],
+                'users_kakao'    => (int)$totals['users_kakao'],
+                'users_email'    => (int)$totals['users_email'],
+                'sessions_total' => (int)$totals['sessions_total'],
+                'messages_total' => (int)$totals['messages_total'],
+                'user_messages'  => (int)$totals['user_messages'],
+                'bot_messages'   => (int)$totals['bot_messages'],
+                'anon_messages'  => (int)$totals['anon_messages'],
+                'anon_sessions'  => (int)$totals['anon_sessions']
+            ),
+            'session_avg' => array(
+                'seconds' => $sessAvg['avg_seconds'] !== null ? round($sessAvg['avg_seconds'], 1) : null,
+                'minutes' => $sessAvg['avg_seconds'] !== null ? round($sessAvg['avg_seconds'] / 60.0, 2) : null,
+                'turns'   => $sessAvg['avg_turns']   !== null ? round($sessAvg['avg_turns'], 2) : null
+            ),
+            'signups'   => $signups,
+            'activity'  => $activity,
+            'turn_hist' => $turnHist,
+            'hourly'    => $hourly,
+            'revisit'   => $revisit,
+            'top_users' => $topUsers
+        ), JSON_UNESCAPED_UNICODE);
+    } catch (PDOException $e) {
+        error_log('[usage_summary] ' . $e->getMessage());
+        echo json_encode(array('success' => false, 'error' => 'usage summary failed'));
     }
 }
