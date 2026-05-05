@@ -32,7 +32,7 @@
 | `httpd.conf:124-125, 131-151` | `<Directory "/var/www">`, `<Directory "/var/www/html">` 모두 `AllowOverride None` |
 | `/etc/httpd/conf.d/` | interview-api 전용 설정 파일 **없음** |
 | `mod_env`, `mod_setenvif` | 모두 `(shared)` 정상 로드 |
-| `/var/www/html/interview-api/.htaccess` | `SetEnv CHA_DB_USER user2`, `SetEnv CHA_DB_PASS user2!!`, `SetEnv CHA_JWT_SECRET ...` 3줄 정상 |
+| `/var/www/html/interview-api/.htaccess` | `SetEnv CHA_DB_USER user2`, `SetEnv CHA_DB_PASS [REDACTED]`, `SetEnv CHA_JWT_SECRET ...` 3줄 정상 |
 | Apache `error_log` | `[interview-api] Missing env: CHA_DB_USER / CHA_DB_PASS / CHA_JWT_SECRET` 다수 |
 | Apache 마지막 (re)start (`systemctl show httpd`) | `ActiveEnterTimestamp=2026-02-25 20:50:56 KST` |
 
@@ -41,7 +41,7 @@
 ```php
 // api.php.bak.survey-20260505 (살아있던 버전)
 $db_user    = getenv('CHA_DB_USER')    ?: 'user2';
-$db_pass    = getenv('CHA_DB_PASS')    ?: 'user2!!';
+$db_pass    = getenv('CHA_DB_PASS')    ?: '[REDACTED]';
 $JWT_SECRET = getenv('CHA_JWT_SECRET') ?: 'b271c8857...';
 
 // api.php (11:48 배포본)
@@ -292,7 +292,7 @@ DELETE FROM survey_responses WHERE id IN (1,2,3);
 
 `/var/www/html/interview-api/.htaccess`에 추가:
 ```
-SetEnv CHA_DASHBOARD_TOKEN xuFjqsnvClt5cZBvaNgofTKJoiv28O4Nf4umdxHq
+SetEnv CHA_DASHBOARD_TOKEN [REDACTED — 40-char dashboard token]
 ```
 `.htaccess`는 매 요청마다 재평가되므로 Apache reload 불필요. 토큰 회전은 이 한 줄만 수정.
 
@@ -727,7 +727,7 @@ function Message({ msg }) {
 | 변경 | 내용 |
 |---|---|
 | `/etc/httpd/conf.d/interview-api.conf` | 신설 — `<Directory "/var/www/html/interview-api"> AllowOverride All; Require all granted; </Directory>` |
-| `/var/www/html/interview-api/.htaccess` | `SetEnv CHA_DASHBOARD_TOKEN xuFjqsnvClt5cZBvaNgofTKJoiv28O4Nf4umdxHq` 1줄 추가 |
+| `/var/www/html/interview-api/.htaccess` | `SetEnv CHA_DASHBOARD_TOKEN [REDACTED — 40-char dashboard token]` 1줄 추가 |
 | `/var/www/html/interview-api/api.php` | v0(Likert) → v1(Yes/No) 교체 + `case 'survey_summary'` 추가 + PHP 5.4 호환 timing-safe compare |
 | `/var/www/html/interview-api/api.php.bak.*` | 시점별 백업 보존 (`v1deploy-20260505-142830`, `summary-20260505-153432`) |
 | MySQL `cha_interview_db.survey_responses` | 39 컬럼 v1 테이블 신설 |
@@ -775,7 +775,7 @@ function Message({ msg }) {
 1. **카카오 로그인 시 개인정보 동의 UI** (김종석 교수 피드백)
    - AuthModal에 동의 박스 1개(체크 안 하면 카카오/이메일 버튼 disabled) + 처리방침 details 영역
    - 옵션: `users.consent_version` / `consent_at` 컬럼 추가로 감사 대비
-2. **노출된 자격증명 회전** — 본 문서·로그·git history에 평문으로 남은 학교 DB pass(`user2!!`), JWT secret, 대시보드 토큰. 우선순위는 사용자 결정.
+2. **노출된 자격증명 회전** — 본 문서·로그·git history에 평문으로 남은 학교 DB pass(`[REDACTED]`), JWT secret, 대시보드 토큰. 우선순위는 사용자 결정.
 3. **미들턴 nginx `/finbot/` location 명시** — 외부 cURL 직접 호출 시 한글 깨짐 해결. 사용자 실 흐름엔 영향 없음.
 4. **운영 `survey_responses` 테이블에 미술치료/소프트웨어융합 학과 직통 갱신** — 학과 직통이 부여되는 즉시 chunk 한 번만 갈아끼우면 됨.
 5. **설문 자유응답(Q25/Q26) 분석** — 키워드 빈도, 주제 분류. 별도 후속.
@@ -950,7 +950,7 @@ function Message({ msg }) {
 ### 11.5 운영 배포
 
 1. 로컬에서 `server/api.php` 수정 (handleUsageSummary 추가, switch case 추가)
-2. `pscp -P 10022 -hostkey SHA256:tEO+v8Z585KLBFzpmFfsT/Lo0VnNAPO8xCA4nJDLlL8 -batch -pw 'user2!!' server/api.php user2@aiforalab.com:/tmp/api_v2_usage.php`
+2. `pscp -P 10022 -hostkey SHA256:tEO+v8Z585KLBFzpmFfsT/Lo0VnNAPO8xCA4nJDLlL8 -batch -pw '[REDACTED]' server/api.php user2@aiforalab.com:/tmp/api_v2_usage.php`
 3. SSH로 백업 (`api.php.bak.usage-<timestamp>`) → `cp /tmp/api_v2_usage.php /var/www/html/interview-api/api.php`
 4. `php -l` syntax check → No syntax errors
 5. 토큰 없는 cURL → `{"success":false,"error":"invalid dashboard token"}` (가드 정상)

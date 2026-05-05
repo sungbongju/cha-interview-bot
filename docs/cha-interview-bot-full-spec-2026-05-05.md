@@ -264,9 +264,9 @@ POST /interview-api/api.php?action=<액션>
 
 ```
 SetEnv CHA_DB_USER user2
-SetEnv CHA_DB_PASS user2!!
-SetEnv CHA_JWT_SECRET b271c8857bedc418d3c68f210c58b4928795b7f1198ec288153d8b9c98704a19
-SetEnv CHA_DASHBOARD_TOKEN xuFjqsnvClt5cZBvaNgofTKJoiv28O4Nf4umdxHq
+SetEnv CHA_DB_PASS [REDACTED]
+SetEnv CHA_JWT_SECRET [REDACTED — 64-hex JWT secret]
+SetEnv CHA_DASHBOARD_TOKEN [REDACTED — 40-char dashboard token]
 ```
 
 `/etc/httpd/conf.d/interview-api.conf`에서 `AllowOverride All`을 명시해야 `.htaccess`가 평가됨 (1.4절 참조).
@@ -696,11 +696,11 @@ HeyGen은 단순 TTS 엔진 — 우리가 보낸 `ttsReply` 문자열을 그대�
 
 | 항목 | 값 | 권장 조치 |
 |---|---|---|
-| 학교 SSH user2 비밀번호 | `user2!!` | 비번 변경 |
-| 학교 DB user2 비밀번호 | `user2!!` (SSH와 동일) | 별도 DB 사용자 분리 + 비번 변경 |
-| 학교 JWT secret | `b271c8857bedc418d3c68f210c58b4928795b7f1198ec288153d8b9c98704a19` | 회전 — `.htaccess` 한 줄 수정 + 모든 사용자 재로그인 필요 |
-| 대시보드 토큰 | `xuFjqsnvClt5cZBvaNgofTKJoiv28O4Nf4umdxHq` | 회전 시 `.htaccess` 수정 + 대시보드 재입력 |
-| 미들턴 SSH student04 비밀번호 | `chacha2025` | 비번 변경 + 가능하면 키 인증 전환 |
+| 학교 SSH user2 비밀번호 | `[REDACTED]` | 비번 변경 |
+| 학교 DB user2 비밀번호 | `[REDACTED]` (SSH와 동일) | 별도 DB 사용자 분리 + 비번 변경 |
+| 학교 JWT secret | `[REDACTED — 64-hex JWT secret]` | 회전 — `.htaccess` 한 줄 수정 + 모든 사용자 재로그인 필요 |
+| 대시보드 토큰 | `[REDACTED — 40-char dashboard token]` | 회전 시 `.htaccess` 수정 + 대시보드 재입력 |
+| 미들턴 SSH student04 비밀번호 | `[REDACTED]` | 비번 변경 + 가능하면 키 인증 전환 |
 
 ### 11.2 외부 API 키 (.env, git 미포함)
 
@@ -737,7 +737,7 @@ Vercel 환경변수 (사용자 대시보드에서 설정):
 
 ```
 SetEnv CHA_DB_USER user2
-SetEnv CHA_DB_PASS user2!!
+SetEnv CHA_DB_PASS [REDACTED]
 SetEnv CHA_JWT_SECRET <64-hex>
 SetEnv CHA_DASHBOARD_TOKEN <40-base64>
 ```
@@ -815,7 +815,7 @@ php -l /var/www/html/interview-api/api.php   # syntax check
 ### 14.2 학교 DB 마이그레이션
 
 ```bash
-mysql -u user2 -p'user2!!' cha_interview_db < migration.sql
+mysql -u user2 -p'[REDACTED]' cha_interview_db < migration.sql
 ```
 
 ### 14.3 미들턴 RAG 갱신
