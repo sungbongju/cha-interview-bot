@@ -18,3 +18,10 @@ server/debug_*.js
 # .htaccess (실제 운영 비밀 포함)
 server/.htaccess.example
 **/.htaccess
+
+# 논문 작업물 (storyline, draft, references, abstract 등 — git에 올리지 않음)
+docs/paper-private/
+docs/paper-storyline-*.md
+docs/paper-draft-*.md
+docs/paper-references-*.md
+docs/paper-abstract-*.md
