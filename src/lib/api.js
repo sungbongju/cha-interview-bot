@@ -111,3 +111,13 @@ export function saveChat(session_id, role, message, rag_hits = null) {
     keepalive: true
   }).catch(() => {})
 }
+
+// 신뢰설계 컴포넌트 평가 설문 제출 (v1)
+// answers: { grade, gender, mbti, major1, major2, q06_..., ..., q24_overall_trust, free_positive, free_negative, duration_seconds }
+export async function saveSurvey(answers) {
+  const token = getToken()
+  const body = { ...answers, survey_version: 'v1' }
+  if (token) body.token = token
+  const r = await call('save_survey', body)
+  return r
+}

@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import AvatarPanel from './components/AvatarPanel'
 import ChatPanel from './components/ChatPanel'
 import AuthModal from './components/AuthModal'
+import SurveyModal from './components/SurveyModal'
 import styles from './App.module.css'
 import { getUser, clearAuth, verifyToken, newSessionId, saveChat } from './lib/api'
 
@@ -153,6 +154,11 @@ export default function App() {
   const [cameraStream, setCameraStream] = useState(null)
   // 첫 접속 시 자동으로 로그인 모달 — 저장된 토큰(=user)이 있으면 안 띄움
   const [authOpen, setAuthOpen]         = useState(() => !getUser())
+  const [surveyOpen, setSurveyOpen]     = useState(false)
+  const [surveySessionId, setSurveySessionId] = useState(null)
+  const [surveyModesUsed, setSurveyModesUsed] = useState([])
+  const modesUsedRef = useRef(new Set())   // 세션 동안 실제 사용된 모드 누적
+  const userTurnCountRef = useRef(0)       // 사용자 발화 턴 수 (3턴 이상일 때만 설문 노출)
 
   const roomRef           = useRef(null)
   const sessionRef        = useRef(null)
@@ -199,7 +205,10 @@ export default function App() {
   useEffect(() => { autoListenRef.current   = autoListen }, [autoListen])
   useEffect(() => { isListeningRef.current  = isListening }, [isListening])
   useEffect(() => { isSpeakingRef.current   = (status === 'speaking') }, [status])
-  useEffect(() => { conversationModeRef.current = conversationMode }, [conversationMode])
+  useEffect(() => {
+    conversationModeRef.current = conversationMode
+    if (conversationMode) modesUsedRef.current.add(conversationMode)
+  }, [conversationMode])
 
   useEffect(() => {
     if (userVideoRef.current) userVideoRef.current.srcObject = cameraStream || null
@@ -287,6 +296,7 @@ export default function App() {
 
     setMessages(prev => [...prev, { role: 'user', text }])
     historyRef.current = [...historyRef.current, { role: 'user', content: text }]
+    userTurnCountRef.current += 1
 
     // DB 저장 (사용자 메시지)
     if (sessionIdRef.current) saveChat(sessionIdRef.current, 'user', text)
@@ -582,6 +592,11 @@ export default function App() {
       roomRef.current = null
     }
 
+    // 설문 트리거 — 사용자 턴 3회 이상일 때만 노출
+    const endedSessionId = sessionIdRef.current
+    const usedTurns = userTurnCountRef.current
+    const usedModes = Array.from(modesUsedRef.current)
+
     // 상태 리셋
     sessionRef.current     = null
     sessionIdRef.current   = null
@@ -591,6 +606,14 @@ export default function App() {
     setVideoReady(false)
     setStatus('idle')
     setMessages([])           // 채팅 초기화 — 깔끔하게 다시 시작
+
+    if (usedTurns >= 3) {
+      setSurveySessionId(endedSessionId)
+      setSurveyModesUsed(usedModes)
+      setSurveyOpen(true)
+    }
+    userTurnCountRef.current = 0
+    modesUsedRef.current = new Set()
   }, [clearListeningRestart, stopUserCamera])
 
   const startTextMode = useCallback(() => {
@@ -826,11 +849,23 @@ export default function App() {
         user={user}
         onLoginClick={() => setAuthOpen(true)}
         onLogout={handleLogout}
+        onOpenSurvey={() => {
+          setSurveySessionId(sessionIdRef.current || null)
+          setSurveyModesUsed(Array.from(modesUsedRef.current))
+          setSurveyOpen(true)
+        }}
       />
       <AuthModal
         open={authOpen}
         onClose={() => setAuthOpen(false)}
         onSuccess={(u) => setUser(u)}
+      />
+      <SurveyModal
+        open={surveyOpen}
+        onClose={() => setSurveyOpen(false)}
+        sessionId={surveySessionId}
+        modesUsed={surveyModesUsed}
+        visitCount={user?.visit_count ?? 1}
       />
     </div>
   )

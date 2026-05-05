@@ -82,6 +82,24 @@
   cursor: pointer;
 }
 
+.surveyBtn {
+  flex-shrink: 0;
+  background: rgba(201,162,126,0.12);
+  border: 1px solid rgba(201,162,126,0.45);
+  color: var(--gold);
+  border-radius: 6px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-family: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.surveyBtn:hover {
+  background: rgba(201,162,126,0.22);
+}
+
 /* 메시지 목록 */
 .messages {
   flex: 1;
@@ -322,6 +340,11 @@
   .loginBtn {
     padding: 5px 12px;
     font-size: 12px;
+  }
+
+  .surveyBtn {
+    padding: 4px 9px;
+    font-size: 11px;
   }
 
   .messages {

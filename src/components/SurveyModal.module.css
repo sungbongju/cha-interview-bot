@@ -1,0 +1,325 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 24px 12px;
+  overflow-y: auto;
+}
+
+.modal {
+  background: #fff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 720px;
+  padding: 24px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+  font-family: 'Noto Sans KR', sans-serif;
+  color: #111827;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+}
+
+.header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.skipBtn {
+  background: none;
+  border: none;
+  color: #6b7280;
+  font-size: 0.9rem;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.skipBtn:hover {
+  color: #111827;
+}
+
+.intro {
+  font-size: 0.9rem;
+  color: #4b5563;
+  line-height: 1.6;
+  margin: 0 0 20px;
+}
+
+.section {
+  margin-bottom: 28px;
+}
+
+.section h3 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 0 0 12px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid #4f46e5;
+  display: inline-block;
+}
+
+.partIntro {
+  font-size: 0.9rem;
+  color: #4b5563;
+  margin: 0 0 16px;
+}
+
+.optional {
+  font-weight: 400;
+  color: #9ca3af;
+  font-size: 0.85em;
+}
+
+/* 인구통계 */
+.demoRow {
+  margin-bottom: 16px;
+}
+
+.demoRow label {
+  display: block;
+  font-weight: 600;
+  font-size: 0.95rem;
+  margin-bottom: 8px;
+}
+
+.chipRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip {
+  background: #f3f4f6;
+  border: 1px solid #d1d5db;
+  border-radius: 999px;
+  padding: 8px 16px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.chip:hover {
+  background: #e5e7eb;
+}
+
+.chipActive {
+  background: #4f46e5;
+  color: #fff;
+  border-color: #4f46e5;
+}
+
+.select {
+  width: 100%;
+  max-width: 360px;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  background: #fff;
+}
+
+/* 18문항 Layer */
+.layerBlock {
+  margin-bottom: 20px;
+}
+
+.layerTitle {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #4f46e5;
+  margin: 0 0 12px;
+  padding: 6px 10px;
+  background: #eef2ff;
+  border-radius: 6px;
+}
+
+.question {
+  margin-bottom: 14px;
+  padding: 12px;
+  background: #f9fafb;
+  border-radius: 10px;
+  border: 1px solid #f3f4f6;
+}
+
+.question.inactive {
+  opacity: 0.5;
+  background: #f3f4f6;
+}
+
+.qLabel {
+  font-size: 0.92rem;
+  line-height: 1.5;
+  margin-bottom: 10px;
+}
+
+.qNum {
+  font-weight: 700;
+  color: #4f46e5;
+  margin-right: 4px;
+}
+
+.condLabel {
+  color: #9ca3af;
+  font-size: 0.85em;
+}
+
+.yesnoRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.yesnoBtn {
+  flex: 1;
+  max-width: 120px;
+  padding: 10px 16px;
+  border: 2px solid #d1d5db;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.yesnoBtn:disabled {
+  cursor: not-allowed;
+  background: #f3f4f6;
+}
+
+.yesnoBtn:not(:disabled):hover {
+  border-color: #6366f1;
+}
+
+.yesActive {
+  background: #10b981 !important;
+  color: #fff !important;
+  border-color: #10b981 !important;
+}
+
+.noActive {
+  background: #ef4444 !important;
+  color: #fff !important;
+  border-color: #ef4444 !important;
+}
+
+.naMark {
+  color: #9ca3af;
+  font-size: 0.85rem;
+  margin-left: 8px;
+}
+
+/* 자유응답 */
+.freeRow {
+  margin-bottom: 16px;
+}
+
+.freeRow label {
+  display: block;
+  font-weight: 600;
+  font-size: 0.92rem;
+  margin-bottom: 6px;
+}
+
+.textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.92rem;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.textarea:focus {
+  outline: none;
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+/* footer */
+.footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+  margin-top: 8px;
+}
+
+.progress {
+  font-size: 0.9rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.primaryBtn {
+  background: #4f46e5;
+  color: #fff;
+  border: none;
+  padding: 12px 32px;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.primaryBtn:hover:not(:disabled) {
+  background: #4338ca;
+}
+
+.primaryBtn:disabled {
+  background: #c7d2fe;
+  cursor: not-allowed;
+}
+
+.error {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  padding: 10px 14px;
+  border-radius: 8px;
+  margin: 12px 0;
+  font-size: 0.9rem;
+}
+
+.doneBox {
+  text-align: center;
+  padding: 32px 16px;
+}
+
+.doneBox h2 {
+  margin: 0 0 12px;
+  color: #4f46e5;
+}
+
+.doneBox p {
+  color: #6b7280;
+  margin: 0 0 24px;
+}
+
+@media (max-width: 600px) {
+  .modal {
+    padding: 16px;
+    border-radius: 12px;
+  }
+  .header h2 {
+    font-size: 1.05rem;
+  }
+  .yesnoBtn {
+    max-width: none;
+  }
+}

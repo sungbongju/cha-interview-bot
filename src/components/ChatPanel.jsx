@@ -35,7 +35,8 @@ export default function ChatPanel({
   mode,
   user,
   onLoginClick,
-  onLogout
+  onLogout,
+  onOpenSurvey
 }) {
   const [input, setInput]       = useState('')
   const bottomRef               = useRef(null)
@@ -77,22 +78,30 @@ export default function ChatPanel({
           <span className={styles.headerIcon}>💬</span>
           <span className={styles.headerTitle}>면담 대화</span>
         </div>
-        {user ? (
-          <div className={styles.userArea}>
-            <span className={`${styles.headerSub} ${styles.userGreeting}`}>
-              {displayName}님
-            </span>
-            <button
-              onClick={onLogout}
-              className={styles.logoutBtn}
-            >로그아웃</button>
-          </div>
-        ) : (
+        <div className={styles.userArea}>
           <button
-            onClick={onLoginClick}
-            className={styles.loginBtn}
-          >로그인</button>
-        )}
+            type="button"
+            onClick={onOpenSurvey}
+            className={styles.surveyBtn}
+            title="이 봇에 대한 의견 남기기"
+          >설문</button>
+          {user ? (
+            <>
+              <span className={`${styles.headerSub} ${styles.userGreeting}`}>
+                {displayName}님
+              </span>
+              <button
+                onClick={onLogout}
+                className={styles.logoutBtn}
+              >로그아웃</button>
+            </>
+          ) : (
+            <button
+              onClick={onLoginClick}
+              className={styles.loginBtn}
+            >로그인</button>
+          )}
+        </div>
       </div>
 
       {/* 메시지 목록 */}

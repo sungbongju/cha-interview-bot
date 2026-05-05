@@ -4,7 +4,8 @@ const ALLOWED_ACTIONS = new Set([
   'email_login',
   'kakao_login',
   'verify',
-  'save_chat'
+  'save_chat',
+  'save_survey'
 ])
 
 export default async function handler(req, res) {

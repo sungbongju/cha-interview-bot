@@ -87,6 +87,9 @@ switch ($action) {
     case 'list_chats':
         handleListChats($pdo, $input);
         break;
+    case 'save_survey':
+        handleSaveSurvey($pdo, $input);
+        break;
     default:
         echo json_encode(array('success' => false, 'error' => 'Unknown action: ' . $action));
 }
@@ -301,4 +304,101 @@ function handleListChats($pdo, $input) {
     $stmt = $pdo->prepare('SELECT id, session_id, role, message, created_at FROM chat_logs WHERE user_id = ? ORDER BY created_at DESC LIMIT ' . $limit);
     $stmt->execute(array($payload['user_id']));
     echo json_encode(array('success' => true, 'rows' => $stmt->fetchAll()));
+}
+
+// ─── Save Survey (신뢰설계 컴포넌트 평가 v1) ───
+function handleSaveSurvey($pdo, $input) {
+    $payload = getUserFromToken($pdo, $input);
+    $user_id = $payload ? $payload['user_id'] : null;
+
+    $session_id     = isset($input['session_id'])     ? trim($input['session_id'])     : null;
+    $survey_version = isset($input['survey_version']) ? trim($input['survey_version']) : 'v1';
+
+    // 인구통계
+    $allowed_grade  = array('1','2','3','4','etc');
+    $allowed_gender = array('female','male','no_answer');
+    $allowed_majors = array('none','세포유전자재생의학','바이오식의약학','시스템생명과학','스포츠의학','심리학','미술치료','디지털보건의료','경영학','미디어커뮤니케이션학','AI의료데이터학','소프트웨어융합');
+
+    $grade  = isset($input['grade'])  && in_array($input['grade'], $allowed_grade)  ? $input['grade']  : null;
+    $gender = isset($input['gender']) && in_array($input['gender'], $allowed_gender) ? $input['gender'] : null;
+    $mbti   = isset($input['mbti'])   ? strtoupper(substr(trim($input['mbti']), 0, 4)) : null;
+    if ($mbti !== null && !preg_match('/^[EI][SN][TF][JP]$/', $mbti)) $mbti = null;
+    $major1 = isset($input['major1']) && in_array($input['major1'], $allowed_majors) ? $input['major1'] : null;
+    $major2 = isset($input['major2']) && in_array($input['major2'], $allowed_majors) ? $input['major2'] : null;
+
+    // Yes/No 정규화: true/1/'yes' → 1, false/0/'no' → 0, 미응답/null → null
+    $toBool = function($v) {
+        if ($v === null || $v === '' || $v === 'na' || $v === 'NA') return null;
+        if ($v === true || $v === 1 || $v === '1' || $v === 'yes' || $v === 'Y' || $v === 'y') return 1;
+        if ($v === false || $v === 0 || $v === '0' || $v === 'no'  || $v === 'N' || $v === 'n') return 0;
+        return null;
+    };
+
+    $q_keys = array(
+        'q06_digital_twin','q07_institution_id','q08_ai_disclosure',
+        'q09_rag_grounding','q10_limit_admit','q11_warm_tone','q12_format_consistency',
+        'q13_latency_pacing','q14_echo_guard','q15_esc_interrupt','q16_avatar_embodiment','q17_mode_switch',
+        'q18_consent_ui','q19_guest_browse','q20_korean_ordinal','q21_visit_tracking','q22_tts_normalize','q23_kakao_redirect',
+        'q24_overall_trust'
+    );
+    $q_vals = array();
+    foreach ($q_keys as $k) {
+        $q_vals[$k] = $toBool(isset($input[$k]) ? $input[$k] : null);
+    }
+
+    // 4-layer 합산 (NULL은 0으로 취급하지 않고 합에서 제외 → COALESCE 처리)
+    $sum = function($keys, $vals) {
+        $s = 0;
+        foreach ($keys as $k) if ($vals[$k] === 1) $s++;
+        return $s;
+    };
+    $layer1_score = $sum(array('q06_digital_twin','q07_institution_id','q08_ai_disclosure'), $q_vals);
+    $layer2_score = $sum(array('q09_rag_grounding','q10_limit_admit','q11_warm_tone','q12_format_consistency'), $q_vals);
+    $layer3_score = $sum(array('q13_latency_pacing','q14_echo_guard','q15_esc_interrupt','q16_avatar_embodiment','q17_mode_switch'), $q_vals);
+    $layer4_score = $sum(array('q18_consent_ui','q19_guest_browse','q20_korean_ordinal','q21_visit_tracking','q22_tts_normalize','q23_kakao_redirect'), $q_vals);
+    $total_yes_count = $layer1_score + $layer2_score + $layer3_score + $layer4_score;
+
+    // 자유응답
+    $free_positive = isset($input['free_positive']) ? mb_substr(trim($input['free_positive']), 0, 2000) : null;
+    $free_negative = isset($input['free_negative']) ? mb_substr(trim($input['free_negative']), 0, 2000) : null;
+
+    // 메타
+    $duration_seconds = isset($input['duration_seconds']) ? (int)$input['duration_seconds'] : null;
+    $flag_too_fast = ($duration_seconds !== null && $duration_seconds < 60) ? 1 : 0;
+    $user_agent = isset($_SERVER['HTTP_USER_AGENT']) ? mb_substr($_SERVER['HTTP_USER_AGENT'], 0, 255) : null;
+
+    $cols = array_merge(
+        array('user_id','session_id','survey_version','grade','gender','mbti','major1','major2'),
+        $q_keys,
+        array('layer1_score','layer2_score','layer3_score','layer4_score','total_yes_count',
+              'free_positive','free_negative','user_agent','duration_seconds','flag_too_fast')
+    );
+    $placeholders = implode(',', array_fill(0, count($cols), '?'));
+    $params = array(
+        $user_id, $session_id, $survey_version, $grade, $gender, $mbti, $major1, $major2
+    );
+    foreach ($q_keys as $k) $params[] = $q_vals[$k];
+    $params = array_merge($params, array(
+        $layer1_score, $layer2_score, $layer3_score, $layer4_score, $total_yes_count,
+        $free_positive, $free_negative, $user_agent, $duration_seconds, $flag_too_fast
+    ));
+
+    $sql = 'INSERT INTO survey_responses (' . implode(',', $cols) . ') VALUES (' . $placeholders . ')';
+
+    try {
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        echo json_encode(array(
+            'success' => true,
+            'id' => $pdo->lastInsertId(),
+            'layer_scores' => array(
+                'L1' => $layer1_score, 'L2' => $layer2_score,
+                'L3' => $layer3_score, 'L4' => $layer4_score,
+                'total' => $total_yes_count
+            )
+        ));
+    } catch (PDOException $e) {
+        error_log('[save_survey] ' . $e->getMessage());
+        echo json_encode(array('success' => false, 'error' => 'survey save failed'));
+    }
 }
