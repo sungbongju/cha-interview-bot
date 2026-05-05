@@ -8,6 +8,19 @@ const ALLOWED_ACTIONS = new Set([
   'save_survey'
 ])
 
+// Disable Vercel's auto body parser so we can forward raw UTF-8 bytes intact.
+// The default parser was decoding Korean UTF-8 with the wrong charset, replacing
+// each multi-byte char with U+FFFD before re-encoding — corrupting the payload.
+export const config = { api: { bodyParser: false } }
+
+async function readRawBody(req) {
+  const chunks = []
+  for await (const chunk of req) {
+    chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk)
+  }
+  return Buffer.concat(chunks)
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
@@ -23,10 +36,12 @@ export default async function handler(req, res) {
   }
 
   try {
+    const rawBody = await readRawBody(req)
+
     const upstream = await fetch(`${SCHOOL_API_BASE}?action=${encodeURIComponent(action)}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(req.body || {})
+      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+      body: rawBody
     })
 
     const text = await upstream.text()
