@@ -1,0 +1,631 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>// CHA / USAGE + TRUST.SURVEY DASHBOARD //</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Pretendard:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #08090c;
+    --panel:     #0e1014;
+    --panel-2:   #131620;
+    --line:      #1f2330;
+    --line-hot:  #2a3142;
+    --text:      #e8edf3;
+    --muted:     #6b7488;
+    --dim:       #44495a;
+    --lime:   #aaff00;
+    --cyan:   #00e5ff;
+    --mag:    #ff2bd6;
+    --orange: #ff8a00;
+    --gold:   #ffd633;
+    --plum:   #c084fc;
+    --red:    #ff3355;
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--bg); }
+  body {
+    margin: 0; padding: 0;
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(170,255,0,0.04), transparent 60%),
+      radial-gradient(900px 600px at -10% 110%, rgba(0,229,255,0.04), transparent 60%),
+      var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono','Pretendard','Noto Sans KR',ui-monospace,Menlo,Consolas,monospace;
+    font-size: 14px; line-height: 1.5; letter-spacing: 0.01em;
+    -webkit-font-smoothing: antialiased; min-height: 100vh;
+  }
+  body::before {
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 1;
+    background: repeating-linear-gradient(0deg, rgba(255,255,255,0.014) 0 1px, transparent 1px 3px);
+    mix-blend-mode: overlay;
+  }
+
+  .topbar {
+    position: sticky; top: 0; z-index: 10;
+    display: grid; grid-template-columns: auto 1fr auto;
+    align-items: center; gap: 18px; padding: 14px 22px;
+    background: rgba(8,9,12,0.85); backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line); font-size: 12px;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 13px; letter-spacing: 0.06em; }
+  .brand .dot { width: 8px; height: 8px; background: var(--lime); border-radius: 1px; box-shadow: 0 0 10px var(--lime), 0 0 24px rgba(170,255,0,0.4); }
+  .brand .id { color: var(--lime); }
+  .brand .sep { color: var(--dim); margin: 0 8px; }
+  .brand .sub { color: var(--muted); font-weight: 500; }
+  .status { display: flex; gap: 18px; flex-wrap: wrap; color: var(--muted); font-size: 11px; }
+  .status b { color: var(--text); font-weight: 700; }
+  .status .ok { color: var(--lime); } .status .err { color: var(--red); }
+  .pulse { display: inline-block; width: 6px; height: 6px; background: var(--lime); border-radius: 999px; margin-right: 6px; animation: blink 1.4s steps(2,start) infinite; }
+  @keyframes blink { 50% { opacity: 0.25; } }
+  .topbar .actions { display: flex; gap: 8px; }
+  .btn { background: transparent; color: var(--text); border: 1px solid var(--line-hot); padding: 6px 12px; font: inherit; font-size: 11px; letter-spacing: 0.06em; cursor: pointer; text-transform: uppercase; transition: all 120ms; }
+  .btn:hover { border-color: var(--lime); color: var(--lime); }
+  .btn:active { background: rgba(170,255,0,0.08); }
+
+  main { padding: 22px; max-width: 1280px; margin: 0 auto; position: relative; z-index: 2; }
+
+  /* 섹션 헤더 */
+  .section-title {
+    margin: 28px 0 14px; font-size: 11px; font-weight: 800; letter-spacing: 0.18em;
+    color: var(--lime); text-transform: uppercase; padding-left: 6px; border-left: 3px solid var(--lime);
+  }
+  .section-title.alt { color: var(--cyan); border-left-color: var(--cyan); }
+  .section-title:first-child { margin-top: 0; }
+  .section-title small { color: var(--muted); font-weight: 500; margin-left: 10px; letter-spacing: 0.04em; }
+
+  /* KPI */
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
+  @media (max-width: 760px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
+  .kpi { position: relative; padding: 14px 16px 16px;
+    background: linear-gradient(180deg, var(--panel-2), var(--panel));
+    border: 1px solid var(--line); box-shadow: 4px 4px 0 0 #000; }
+  .kpi::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--accent, var(--lime)); }
+  .kpi[data-c=lime]   { --accent: var(--lime); }
+  .kpi[data-c=cyan]   { --accent: var(--cyan); }
+  .kpi[data-c=mag]    { --accent: var(--mag); }
+  .kpi[data-c=gold]   { --accent: var(--gold); }
+  .kpi[data-c=plum]   { --accent: var(--plum); }
+  .kpi[data-c=orange] { --accent: var(--orange); }
+  .kpi .tag { font-size: 10px; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; display: flex; justify-content: space-between; align-items: center; }
+  .kpi .tag .idx { color: var(--accent, var(--lime)); font-weight: 700; }
+  .kpi .value { font-size: 28px; font-weight: 800; margin-top: 4px; letter-spacing: -0.02em; line-height: 1; }
+  .kpi .value.accent { color: var(--accent, var(--lime)); }
+  .kpi .desc { font-size: 11px; color: var(--muted); margin-top: 6px; }
+
+  .grid { display: grid; gap: 16px; grid-template-columns: 1fr 1fr; }
+  @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+  .card { position: relative; background: var(--panel); border: 1px solid var(--line); box-shadow: 4px 4px 0 0 #000; }
+  .card.full { grid-column: 1 / -1; }
+  .card .head { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid var(--line); background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent); }
+  .card .head h2 { margin: 0; font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; }
+  .card .head h2 .pre { color: var(--lime); margin-right: 6px; }
+  .card .head .meta { font-size: 10px; color: var(--muted); letter-spacing: 0.08em; }
+  .card .body { padding: 14px; }
+  .card .body p.sub { margin: 0 0 10px; font-size: 11px; color: var(--muted); }
+  .card::after { content: ""; position: absolute; right: 8px; top: 8px; width: 10px; height: 10px; border-top: 1px solid var(--line-hot); border-right: 1px solid var(--line-hot); }
+
+  .chart-wrap { position: relative; width: 100%; height: 260px; }
+  .chart-wrap.tall { height: 540px; }
+  .chart-wrap.donut { height: 220px; }
+  .chart-wrap canvas { display: block; }
+
+  /* tables */
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th, td { text-align: left; padding: 6px 8px; }
+  th { color: var(--muted); font-weight: 500; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; border-bottom: 1px solid var(--line); }
+  td { border-bottom: 1px dashed var(--line); }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tr:hover td { background: rgba(170,255,0,0.04); }
+  td .login-tag { font-size: 10px; padding: 1px 6px; border-radius: 999px; letter-spacing: 0.06em; text-transform: uppercase; }
+  td .login-tag.kakao { background: rgba(255,213,51,0.14); color: var(--gold); border: 1px solid rgba(255,213,51,0.4); }
+  td .login-tag.email { background: rgba(0,229,255,0.12); color: var(--cyan); border: 1px solid rgba(0,229,255,0.4); }
+
+  .demo-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  @media (max-width: 900px) { .demo-row { grid-template-columns: repeat(2, 1fr); } }
+  .demo-row .col h3 { font-size: 10px; color: var(--muted); margin: 0 0 8px; letter-spacing: 0.16em; text-transform: uppercase; border-bottom: 1px dashed var(--line); padding-bottom: 6px; }
+
+  .err { color: var(--red); font-size: 12px; padding: 10px 14px; background: rgba(255,51,85,0.08); border: 1px solid rgba(255,51,85,0.4); border-left: 3px solid var(--red); margin-bottom: 16px; letter-spacing: 0.04em; }
+  .err::before { content: "[ERR] >> "; color: var(--red); font-weight: 700; }
+  .empty { color: var(--muted); font-size: 11px; padding: 14px 0; text-align: center; }
+
+  footer { margin-top: 28px; padding: 14px 0; border-top: 1px solid var(--line); color: var(--dim); font-size: 11px; letter-spacing: 0.06em; display: flex; gap: 16px; flex-wrap: wrap; justify-content: space-between; }
+  footer .seg { color: var(--muted); }
+  footer .seg b { color: var(--text); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="dot"></span>
+    <span>CHA</span><span class="sep">/</span>
+    <span class="id">USAGE + TRUST.SURVEY</span><span class="sep">/</span>
+    <span class="sub">DASHBOARD v2</span>
+  </div>
+  <div class="status">
+    <span><span class="pulse"></span><b id="status-text">CONNECTING…</b></span>
+    <span>NODE: <b>cha-Bigdata</b></span>
+    <span>UPDATED: <b id="status-updated">—</b></span>
+  </div>
+  <div class="actions">
+    <button id="btn-refresh" class="btn" type="button">[ REFRESH ]</button>
+    <button id="btn-token" class="btn" type="button">[ TOKEN ]</button>
+  </div>
+</header>
+
+<main>
+  <div id="err" class="err" style="display:none"></div>
+
+  <!-- ═════════════ USAGE 섹션 ═════════════ -->
+  <h1 class="section-title">USAGE / 사용 현황 <small>// users + chat_logs (no message body shown)</small></h1>
+
+  <section class="kpis">
+    <div class="kpi" data-c="lime">
+      <div class="tag"><span>// users_total</span><span class="idx">[U-01]</span></div>
+      <div class="value accent" id="ku-users">—</div>
+      <div class="desc"><span id="ku-users-detail">—</span></div>
+    </div>
+    <div class="kpi" data-c="cyan">
+      <div class="tag"><span>// sessions_total</span><span class="idx">[U-02]</span></div>
+      <div class="value accent" id="ku-sessions">—</div>
+      <div class="desc"><span id="ku-anon">익명 세션 — 건</span></div>
+    </div>
+    <div class="kpi" data-c="mag">
+      <div class="tag"><span>// messages_total</span><span class="idx">[U-03]</span></div>
+      <div class="value accent" id="ku-messages">—</div>
+      <div class="desc"><span id="ku-msg-detail">user — / bot —</span></div>
+    </div>
+    <div class="kpi" data-c="gold">
+      <div class="tag"><span>// avg_session_duration</span><span class="idx">[U-04]</span></div>
+      <div class="value accent" id="ku-avgdur">—</div>
+      <div class="desc"><span id="ku-avgturns">평균 사용자 턴 — 회</span></div>
+    </div>
+  </section>
+
+  <section class="grid">
+    <article class="card full">
+      <div class="head">
+        <h2><span class="pre">&gt;&gt;</span>DAILY ACTIVITY</h2>
+        <span class="meta">// 일별 신규 가입 + 일별 세션 + 활성 사용자</span>
+      </div>
+      <div class="body"><div class="chart-wrap"><canvas id="chart-activity"></canvas></div></div>
+    </article>
+
+    <article class="card">
+      <div class="head">
+        <h2><span class="pre">&gt;&gt;</span>SESSION TURN DISTRIBUTION</h2>
+        <span class="meta">// 사용자 턴 수 분포</span>
+      </div>
+      <div class="body"><div class="chart-wrap"><canvas id="chart-turns"></canvas></div></div>
+    </article>
+
+    <article class="card">
+      <div class="head">
+        <h2><span class="pre">&gt;&gt;</span>HOURLY USAGE</h2>
+        <span class="meta">// 0–23시 사용자 발화 수</span>
+      </div>
+      <div class="body"><div class="chart-wrap"><canvas id="chart-hourly"></canvas></div></div>
+    </article>
+
+    <article class="card">
+      <div class="head">
+        <h2><span class="pre">&gt;&gt;</span>SIGNUP TYPE</h2>
+        <span class="meta">// 카카오 vs 이메일</span>
+      </div>
+      <div class="body"><div class="chart-wrap donut"><canvas id="chart-signup"></canvas></div></div>
+    </article>
+
+    <article class="card">
+      <div class="head">
+        <h2><span class="pre">&gt;&gt;</span>REVISIT DISTRIBUTION</h2>
+        <span class="meta">// users.visit_count</span>
+      </div>
+      <div class="body"><div class="chart-wrap"><canvas id="chart-revisit"></canvas></div></div>
+    </article>
+
+    <article class="card full">
+      <div class="head">
+        <h2><span class="pre">&gt;&gt;</span>TOP USERS</h2>
+        <span class="meta">// 메시지 수 기준 Top 10 (PII: 이메일/카카오id 비공개)</span>
+      </div>
+      <div class="body">
+        <table id="tbl-top-users">
+          <thead><tr>
+            <th>id</th><th>name</th><th>type</th>
+            <th class="num">messages</th><th class="num">user_msgs</th>
+            <th class="num">sessions</th><th class="num">visits</th>
+            <th>last_login</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </article>
+  </section>
+
+  <!-- ═════════════ SURVEY 섹션 ═════════════ -->
+  <h1 class="section-title alt">TRUST SURVEY / 신뢰 컴포넌트 <small>// survey_responses v1</small></h1>
+
+  <section class="kpis">
+    <div class="kpi" data-c="lime">
+      <div class="tag"><span>// total_responses</span><span class="idx">[S-01]</span></div>
+      <div class="value accent" id="kpi-total">—</div>
+      <div class="desc">flag_too_fast included</div>
+    </div>
+    <div class="kpi" data-c="cyan">
+      <div class="tag"><span>// valid_responses (≥60s)</span><span class="idx">[S-02]</span></div>
+      <div class="value accent" id="kpi-valid">—</div>
+      <div class="desc">flag_too_fast = 0</div>
+    </div>
+    <div class="kpi" data-c="mag">
+      <div class="tag"><span>// q24_overall_trust</span><span class="idx">[S-03]</span></div>
+      <div class="value accent" id="kpi-q24">—</div>
+      <div class="desc">yes-rate (valid only)</div>
+    </div>
+    <div class="kpi" data-c="gold">
+      <div class="tag"><span>// total_yes_count</span><span class="idx">[S-04]</span></div>
+      <div class="value accent" id="kpi-total-score">—</div>
+      <div class="desc">avg out of 18</div>
+    </div>
+  </section>
+
+  <section class="grid">
+    <article class="card full">
+      <div class="head">
+        <h2><span class="pre">&gt;&gt;</span>18 COMPONENTS — YES RATE</h2>
+        <span class="meta">// Q06 .. Q24 // colored by Layer</span>
+      </div>
+      <div class="body">
+        <p class="sub">L1 정체성 <span style="color:var(--mag)">●</span> &nbsp; L2 답변 품질 <span style="color:var(--orange)">●</span> &nbsp; L3 자연스러움 <span style="color:var(--lime)">●</span> &nbsp; L4 정책 신호 <span style="color:var(--cyan)">●</span> &nbsp; OVERALL <span style="color:var(--gold)">●</span></p>
+        <div class="chart-wrap tall"><canvas id="chart-components"></canvas></div>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="head"><h2><span class="pre">&gt;&gt;</span>4-LAYER SCORE</h2><span class="meta">// percent of layer max</span></div>
+      <div class="body"><div class="chart-wrap"><canvas id="chart-layers"></canvas></div></div>
+    </article>
+
+    <article class="card">
+      <div class="head"><h2><span class="pre">&gt;&gt;</span>DAILY TREND</h2><span class="meta">// count + avg score</span></div>
+      <div class="body"><div class="chart-wrap"><canvas id="chart-daily"></canvas></div></div>
+    </article>
+
+    <article class="card full">
+      <div class="head"><h2><span class="pre">&gt;&gt;</span>DEMOGRAPHIC SLICES</h2><span class="meta">// grade · gender · major · mbti</span></div>
+      <div class="body">
+        <div class="demo-row">
+          <div class="col"><h3>학년 / GRADE</h3><table id="tbl-grade"><thead><tr><th>k</th><th class="num">n</th><th class="num">avg</th></tr></thead><tbody></tbody></table></div>
+          <div class="col"><h3>성별 / GENDER</h3><table id="tbl-gender"><thead><tr><th>k</th><th class="num">n</th><th class="num">avg</th></tr></thead><tbody></tbody></table></div>
+          <div class="col"><h3>1전공 / MAJOR</h3><table id="tbl-major"><thead><tr><th>k</th><th class="num">n</th><th class="num">avg</th></tr></thead><tbody></tbody></table></div>
+          <div class="col"><h3>MBTI</h3><table id="tbl-mbti"><thead><tr><th>k</th><th class="num">n</th><th class="num">avg</th></tr></thead><tbody></tbody></table></div>
+        </div>
+      </div>
+    </article>
+  </section>
+
+  <footer>
+    <span class="seg">CLIENT: <b>cha-interview-bot.vercel.app</b></span>
+    <span class="seg">UPSTREAM: <b>aiforalab.com / interview-api</b></span>
+    <span class="seg">SCHEMA: <b>users · chat_logs · survey_responses v1</b></span>
+  </footer>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>
+(function() {
+  const API = 'https://cha-interview-bot.vercel.app/api/school-api';
+  const TOKEN_KEY = 'cha_dashboard_token';
+
+  const QLABEL = {
+    q06_digital_twin:'Q06 디지털 트윈', q07_institution_id:'Q07 기관 신원', q08_ai_disclosure:'Q08 AI 명시',
+    q09_rag_grounding:'Q09 RAG 사실성', q10_limit_admit:'Q10 한계 인정', q11_warm_tone:'Q11 따뜻한 말투', q12_format_consistency:'Q12 형식 일관성',
+    q13_latency_pacing:'Q13 응답 속도', q14_echo_guard:'Q14 에코 방어', q15_esc_interrupt:'Q15 인터럽트', q16_avatar_embodiment:'Q16 아바타 입동기', q17_mode_switch:'Q17 모드 전환',
+    q18_consent_ui:'Q18 동의 UI', q19_guest_browse:'Q19 비로그인 둘러보기', q20_korean_ordinal:'Q20 한글 서수', q21_visit_tracking:'Q21 방문 추적', q22_tts_normalize:'Q22 TTS 정규화', q23_kakao_redirect:'Q23 카카오 외부 전환',
+    q24_overall_trust:'Q24 전반 신뢰'
+  };
+  const Q_LAYER = {
+    q06_digital_twin:1, q07_institution_id:1, q08_ai_disclosure:1,
+    q09_rag_grounding:2, q10_limit_admit:2, q11_warm_tone:2, q12_format_consistency:2,
+    q13_latency_pacing:3, q14_echo_guard:3, q15_esc_interrupt:3, q16_avatar_embodiment:3, q17_mode_switch:3,
+    q18_consent_ui:4, q19_guest_browse:4, q20_korean_ordinal:4, q21_visit_tracking:4, q22_tts_normalize:4, q23_kakao_redirect:4,
+    q24_overall_trust:5
+  };
+  const C = { L1:'#ff2bd6', L2:'#ff8a00', L3:'#aaff00', L4:'#00e5ff', L5:'#ffd633', dim:'#1f2330', text:'#e8edf3', muted:'#6b7488' };
+  const LAYER_COLOR = { 1:C.L1, 2:C.L2, 3:C.L3, 4:C.L4, 5:C.L5 };
+
+  const charts = {};
+  const COMMON = { responsive:true, maintainAspectRatio:false, animation:false, resizeDelay:120 };
+
+  Chart.defaults.font.family = "'JetBrains Mono','Pretendard','Noto Sans KR',monospace";
+  Chart.defaults.color = C.text;
+  Chart.defaults.borderColor = C.dim;
+
+  function getToken() {
+    let t = sessionStorage.getItem(TOKEN_KEY);
+    if (!t) {
+      t = window.prompt('// dashboard token required');
+      if (t) sessionStorage.setItem(TOKEN_KEY, t.trim());
+    }
+    return t;
+  }
+  function setError(msg) { const el=document.getElementById('err'); if(msg){el.textContent=msg;el.style.display='block';}else{el.style.display='none';} }
+  function setStatus(t, ok) { const s=document.getElementById('status-text'); s.textContent=t; s.className = ok===true?'ok':(ok===false?'err':''); }
+  function fmtPct(v) { return v == null ? '—' : (Math.round(v*10)/10) + '%'; }
+  function fmtNum(v, d) { return v == null ? '—' : Number(v).toFixed(d!=null?d:1); }
+  function fmtInt(v) { return v == null ? '—' : Number(v).toLocaleString('ko-KR'); }
+  function destroyChart(k) { if (charts[k]) { charts[k].destroy(); delete charts[k]; } }
+
+  async function callApi(action) {
+    const token = getToken();
+    if (!token) throw new Error('TOKEN_MISSING');
+    const r = await fetch(API + '?action=' + action, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Dashboard-Token': token },
+      body: '{}'
+    });
+    const data = await r.json();
+    if (!data || !data.success) {
+      const msg = data && data.error ? data.error : '알 수 없는 오류';
+      if (msg.indexOf('token') >= 0) sessionStorage.removeItem(TOKEN_KEY);
+      throw new Error(msg);
+    }
+    return data;
+  }
+
+  async function load() {
+    setError(''); setStatus('CONNECTING…');
+    let usage, survey;
+    try {
+      [usage, survey] = await Promise.all([callApi('usage_summary'), callApi('survey_summary')]);
+    } catch (e) {
+      setStatus('OFFLINE', false);
+      setError(e.message);
+      return;
+    }
+    setStatus('LIVE', true);
+    document.getElementById('status-updated').textContent =
+      usage.as_of ? new Date(usage.as_of).toLocaleString('ko-KR') : '—';
+    renderUsage(usage);
+    renderSurvey(survey);
+  }
+
+  // ═════════ USAGE ═════════
+  function renderUsage(u) {
+    const t = u.totals || {}, sa = u.session_avg || {};
+    document.getElementById('ku-users').textContent = fmtInt(t.users_total);
+    document.getElementById('ku-users-detail').textContent =
+      `카카오 ${t.users_kakao||0} · 이메일 ${t.users_email||0}`;
+    document.getElementById('ku-sessions').textContent = fmtInt(t.sessions_total);
+    document.getElementById('ku-anon').textContent =
+      `익명 세션 ${t.anon_sessions||0}건 · 익명 메시지 ${t.anon_messages||0}건`;
+    document.getElementById('ku-messages').textContent = fmtInt(t.messages_total);
+    document.getElementById('ku-msg-detail').textContent =
+      `user ${t.user_messages||0} / bot ${t.bot_messages||0}`;
+    document.getElementById('ku-avgdur').textContent =
+      sa.minutes != null ? sa.minutes + ' 분' : '—';
+    document.getElementById('ku-avgturns').textContent =
+      sa.turns != null ? `평균 사용자 턴 ${sa.turns} 회` : '평균 사용자 턴 — 회';
+
+    renderActivity(u.signups || [], u.activity || []);
+    renderTurns(u.turn_hist || {});
+    renderHourly(u.hourly || []);
+    renderSignupDonut(t);
+    renderRevisit(u.revisit || []);
+    renderTopUsers(u.top_users || []);
+  }
+
+  function renderActivity(signups, activity) {
+    // 두 시리즈의 날짜를 union
+    const dates = Array.from(new Set([...signups.map(r=>r.d), ...activity.map(r=>r.d)])).sort();
+    const sm = Object.fromEntries(signups.map(r=>[r.d, parseInt(r.n)]));
+    const am = Object.fromEntries(activity.map(r=>[r.d, parseInt(r.sessions)]));
+    const um = Object.fromEntries(activity.map(r=>[r.d, parseInt(r.active_users)]));
+    destroyChart('activity');
+    charts.activity = new Chart(document.getElementById('chart-activity'), {
+      data: { labels: dates,
+        datasets: [
+          { type:'bar',  label:'신규 가입',  data: dates.map(d => sm[d] || 0), backgroundColor: 'rgba(170,255,0,0.55)', borderColor: C.L3, borderWidth:1, borderRadius: 0, yAxisID:'y' },
+          { type:'line', label:'활성 사용자', data: dates.map(d => um[d] || 0), borderColor: C.L4, backgroundColor: C.L4, pointBackgroundColor: C.L4, pointRadius: 3, tension: 0.2, yAxisID:'y' },
+          { type:'line', label:'세션 수',    data: dates.map(d => am[d] || 0), borderColor: C.L1, backgroundColor: C.L1, pointBackgroundColor: C.L1, pointRadius: 3, tension: 0.2, yAxisID:'y' }
+        ]
+      },
+      options: { ...COMMON,
+        scales: { y: { beginAtZero:true, ticks:{ color:C.muted, precision:0 }, grid:{ color:'rgba(255,255,255,0.04)' }, border:{ color: C.dim } },
+                  x: { ticks:{ color:C.text, font:{size:11} }, grid:{ display:false }, border:{ color: C.dim } } },
+        plugins: { legend: { labels:{ color:C.muted, boxWidth:10, font:{size:11} } },
+          tooltip:{ backgroundColor:'#0a0c12', bodyColor:C.text, borderColor:C.dim, borderWidth:1, padding:10, cornerRadius:0 } }
+      }
+    });
+  }
+
+  function renderTurns(h) {
+    const labels = ['1', '2', '3', '4-5', '6-10', '11+'];
+    const data = [h.bin_1, h.bin_2, h.bin_3, h.bin_4_5, h.bin_6_10, h.bin_11p].map(v => parseInt(v||0));
+    destroyChart('turns');
+    charts.turns = new Chart(document.getElementById('chart-turns'), {
+      type:'bar',
+      data:{ labels, datasets:[{ data, backgroundColor: C.L4, borderRadius: 0 }] },
+      options:{ ...COMMON,
+        scales:{ y:{ beginAtZero:true, ticks:{ color:C.muted, precision:0 }, grid:{ color:'rgba(255,255,255,0.04)' }, border:{ color:C.dim } },
+                 x:{ ticks:{ color:C.text, font:{size:11} }, grid:{ display:false }, border:{ color:C.dim } } },
+        plugins:{ legend:{ display:false },
+          tooltip:{ backgroundColor:'#0a0c12', bodyColor:C.text, borderColor:C.dim, borderWidth:1, padding:10, cornerRadius:0,
+            callbacks:{ label: ctx => ' 세션 수: ' + ctx.parsed.y } } }
+      }
+    });
+  }
+
+  function renderHourly(rows) {
+    const map = {};
+    for (const r of rows) map[parseInt(r.h)] = parseInt(r.n);
+    const labels = Array.from({length:24}, (_,i) => i + '시');
+    const data = Array.from({length:24}, (_,i) => map[i] || 0);
+    destroyChart('hourly');
+    charts.hourly = new Chart(document.getElementById('chart-hourly'), {
+      type:'bar',
+      data:{ labels, datasets:[{ data, backgroundColor: C.L2, borderRadius: 0 }] },
+      options:{ ...COMMON,
+        scales:{ y:{ beginAtZero:true, ticks:{ color:C.muted, precision:0 }, grid:{ color:'rgba(255,255,255,0.04)' }, border:{ color:C.dim } },
+                 x:{ ticks:{ color:C.muted, font:{size:9}, maxRotation:0 }, grid:{ display:false }, border:{ color:C.dim } } },
+        plugins:{ legend:{ display:false },
+          tooltip:{ backgroundColor:'#0a0c12', bodyColor:C.text, borderColor:C.dim, borderWidth:1, padding:10, cornerRadius:0 } }
+      }
+    });
+  }
+
+  function renderSignupDonut(t) {
+    destroyChart('signup');
+    const labels = ['카카오', '이메일', '익명 세션'];
+    const values = [t.users_kakao||0, t.users_email||0, t.anon_sessions||0];
+    const colors = [C.L5, C.L4, C.muted];
+    charts.signup = new Chart(document.getElementById('chart-signup'), {
+      type:'doughnut',
+      data:{ labels, datasets:[{ data: values, backgroundColor: colors, borderColor: '#0e1014', borderWidth: 2 }] },
+      options:{ ...COMMON,
+        cutout: '60%',
+        plugins:{ legend:{ position:'right', labels:{ color: C.text, boxWidth: 12, font:{size:11} } },
+          tooltip:{ backgroundColor:'#0a0c12', bodyColor:C.text, borderColor:C.dim, borderWidth:1, padding:10, cornerRadius:0 } }
+      }
+    });
+  }
+
+  function renderRevisit(rows) {
+    if (!rows.length) return;
+    const labels = rows.map(r => r.vc + '회');
+    const data = rows.map(r => parseInt(r.n));
+    destroyChart('revisit');
+    charts.revisit = new Chart(document.getElementById('chart-revisit'), {
+      type:'bar',
+      data:{ labels, datasets:[{ data, backgroundColor: C.L1, borderRadius:0 }] },
+      options:{ ...COMMON,
+        scales:{ y:{ beginAtZero:true, ticks:{ color:C.muted, precision:0 }, grid:{ color:'rgba(255,255,255,0.04)' }, border:{ color:C.dim } },
+                 x:{ ticks:{ color:C.text, font:{size:11} }, grid:{ display:false }, border:{ color:C.dim } } },
+        plugins:{ legend:{ display:false },
+          tooltip:{ backgroundColor:'#0a0c12', bodyColor:C.text, borderColor:C.dim, borderWidth:1, padding:10, cornerRadius:0,
+            callbacks:{ label: ctx => ' 사용자 수: ' + ctx.parsed.y } } }
+      }
+    });
+  }
+
+  function renderTopUsers(rows) {
+    const tb = document.querySelector('#tbl-top-users tbody');
+    tb.innerHTML = '';
+    if (!rows.length) { tb.innerHTML = '<tr><td colspan="8" class="empty">// no data</td></tr>'; return; }
+    for (const r of rows) {
+      const tr = document.createElement('tr');
+      const cls = r.login_type === 'kakao' ? 'kakao' : (r.login_type === 'email' ? 'email' : '');
+      const lastLogin = r.last_login ? new Date(r.last_login).toLocaleString('ko-KR', { dateStyle: 'short', timeStyle: 'short' }) : '—';
+      tr.innerHTML =
+        '<td>' + r.id + '</td>' +
+        '<td>' + (r.name || '—') + '</td>' +
+        '<td>' + (cls ? '<span class="login-tag '+cls+'">' + r.login_type + '</span>' : (r.login_type || '—')) + '</td>' +
+        '<td class="num">' + (r.msgs || 0) + '</td>' +
+        '<td class="num">' + (r.user_msgs || 0) + '</td>' +
+        '<td class="num">' + (r.sessions || 0) + '</td>' +
+        '<td class="num">' + (r.visit_count || 0) + '</td>' +
+        '<td>' + lastLogin + '</td>';
+      tb.appendChild(tr);
+    }
+  }
+
+  // ═════════ SURVEY ═════════
+  function renderSurvey(d) {
+    document.getElementById('kpi-total').textContent = d.total;
+    document.getElementById('kpi-valid').textContent = d.valid;
+    const q24 = d.components && d.components.q24_overall_trust ? d.components.q24_overall_trust.yes_pct : null;
+    document.getElementById('kpi-q24').textContent = fmtPct(q24);
+    const tot = d.layers && d.layers.total ? d.layers.total.avg : null;
+    document.getElementById('kpi-total-score').textContent = fmtNum(tot, 2);
+    renderComponents(d.components || {});
+    renderLayers(d.layers || {});
+    renderDaily(d.daily || []);
+    fillTable('tbl-grade',  d.demographics ? d.demographics.grade : null);
+    fillTable('tbl-gender', d.demographics ? d.demographics.gender : null);
+    fillTable('tbl-major',  d.demographics ? d.demographics.major1 : null);
+    fillTable('tbl-mbti',   d.demographics ? d.demographics.mbti : null);
+  }
+
+  function renderComponents(comp) {
+    const order = Object.keys(QLABEL);
+    const labels = order.map(k => QLABEL[k]);
+    const values = order.map(k => comp[k] ? comp[k].yes_pct : null);
+    const colors = order.map(k => LAYER_COLOR[Q_LAYER[k]] || '#888');
+    const ns     = order.map(k => comp[k] ? comp[k].n : 0);
+    destroyChart('components');
+    charts.components = new Chart(document.getElementById('chart-components'), {
+      type:'bar',
+      data:{ labels, datasets:[{ data:values, backgroundColor:colors, borderRadius:0 }] },
+      options:{ ...COMMON, indexAxis:'y',
+        scales:{ x:{ min:0, max:100, ticks:{ color:C.muted, callback:v=>v+'%', font:{size:11} }, grid:{ color:'rgba(255,255,255,0.04)' }, border:{ color:C.dim } },
+                 y:{ ticks:{ color:C.text, font:{size:11} }, grid:{ display:false }, border:{ color:C.dim } } },
+        plugins:{ legend:{ display:false },
+          tooltip:{ backgroundColor:'#0a0c12', titleColor:C.L3, bodyColor:C.text, borderColor:C.dim, borderWidth:1, padding:10, cornerRadius:0, displayColors:false,
+            callbacks:{ title: items => items[0].label,
+              label: ctx => { const v = ctx.parsed.x; return ' yes_rate = ' + (v == null ? 'NA' : (Math.round(v*10)/10) + '%') + '   n=' + ns[ctx.dataIndex]; } } } }
+      }
+    });
+  }
+
+  function renderLayers(L) {
+    const labels = ['L1', 'L2', 'L3', 'L4'];
+    const max = [L.L1?.max, L.L2?.max, L.L3?.max, L.L4?.max];
+    const avg = [L.L1?.avg, L.L2?.avg, L.L3?.avg, L.L4?.avg];
+    const pct = avg.map((a,i) => (a == null || !max[i]) ? null : Math.round(a * 100 / max[i] * 10)/10);
+    destroyChart('layers');
+    charts.layers = new Chart(document.getElementById('chart-layers'), {
+      type:'bar',
+      data:{ labels, datasets:[{ data:pct, backgroundColor:[C.L1, C.L2, C.L3, C.L4], borderRadius:0 }] },
+      options:{ ...COMMON,
+        scales:{ y:{ min:0, max:100, ticks:{ color:C.muted, callback:v=>v+'%', font:{size:11} }, grid:{ color:'rgba(255,255,255,0.04)' }, border:{ color:C.dim } },
+                 x:{ ticks:{ color:C.text, font:{size:11, weight:'700'} }, grid:{ display:false }, border:{ color:C.dim } } },
+        plugins:{ legend:{ display:false },
+          tooltip:{ backgroundColor:'#0a0c12', bodyColor:C.text, borderColor:C.dim, borderWidth:1, padding:10, cornerRadius:0, displayColors:false,
+            callbacks:{ label: ctx => { const i = ctx.dataIndex; return ' avg = ' + (avg[i] == null ? '—' : avg[i].toFixed(2)) + ' / ' + max[i] + '   (' + (pct[i]==null?'—':pct[i]+'%') + ')'; } } } }
+      }
+    });
+  }
+
+  function renderDaily(daily) {
+    const ctx = document.getElementById('chart-daily');
+    if (!daily.length) { destroyChart('daily'); const c = ctx.getContext('2d'); c.clearRect(0,0,ctx.width,ctx.height); c.fillStyle = C.muted; c.font = '12px JetBrains Mono, monospace'; c.textAlign='center'; c.fillText('// no data', ctx.width/2, ctx.height/2); return; }
+    const labels = daily.map(r => r.d);
+    const ns = daily.map(r => parseInt(r.n));
+    const avgs = daily.map(r => r.avg_total == null ? null : parseFloat(r.avg_total));
+    destroyChart('daily');
+    charts.daily = new Chart(ctx, {
+      data:{ labels,
+        datasets:[
+          { type:'bar',  label:'count', data:ns, backgroundColor:'rgba(0,229,255,0.55)', borderColor:C.L4, borderWidth:1, borderRadius:0, yAxisID:'y' },
+          { type:'line', label:'avg', data:avgs, borderColor:C.L3, backgroundColor:C.L3, yAxisID:'y1', tension:0.2, pointRadius:3, pointBackgroundColor:C.L3 } ] },
+      options:{ ...COMMON,
+        scales:{ y:{ position:'left', beginAtZero:true, ticks:{ color:C.muted, precision:0, font:{size:11} }, grid:{ color:'rgba(255,255,255,0.04)' }, border:{ color:C.dim } },
+                 y1:{ position:'right', beginAtZero:true, max:18, ticks:{ color:C.muted, font:{size:11} }, grid:{ display:false }, border:{ color:C.dim } },
+                 x:{ ticks:{ color:C.text, font:{size:11} }, grid:{ display:false }, border:{ color:C.dim } } },
+        plugins:{ legend:{ labels:{ color:C.muted, boxWidth:10, font:{size:11} } },
+          tooltip:{ backgroundColor:'#0a0c12', bodyColor:C.text, borderColor:C.dim, borderWidth:1, padding:10, cornerRadius:0 } } }
+    });
+  }
+
+  function fillTable(id, rows) {
+    const tb = document.querySelector('#' + id + ' tbody');
+    tb.innerHTML = '';
+    if (!rows || !rows.length) { tb.innerHTML = '<tr><td colspan="3" class="empty">// no data</td></tr>'; return; }
+    for (const r of rows) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + (r.k == null ? '—' : r.k) + '</td><td class="num">' + r.n + '</td><td class="num">' + (r.avg_total == null ? '—' : r.avg_total) + '</td>';
+      tb.appendChild(tr);
+    }
+  }
+
+  document.getElementById('btn-refresh').addEventListener('click', load);
+  document.getElementById('btn-token').addEventListener('click', () => { sessionStorage.removeItem(TOKEN_KEY); load(); });
+
+  load();
+})();
+</script>
+</body>
+</html>
