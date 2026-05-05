@@ -416,7 +416,14 @@ function handleSurveySummary($pdo, $input) {
     $provided = '';
     if (isset($_SERVER['HTTP_X_DASHBOARD_TOKEN'])) $provided = $_SERVER['HTTP_X_DASHBOARD_TOKEN'];
     if (!$provided && isset($input['dashboard_token'])) $provided = $input['dashboard_token'];
-    if (!hash_equals($expected, $provided)) {
+    // timing-safe compare (PHP 5.4 호환 — hash_equals는 5.6+에만 있음)
+    $eq = false;
+    if (strlen($expected) === strlen($provided)) {
+        $r = 0;
+        for ($i = 0; $i < strlen($expected); $i++) $r |= ord($expected[$i]) ^ ord($provided[$i]);
+        $eq = ($r === 0);
+    }
+    if (!$eq) {
         echo json_encode(array('success' => false, 'error' => 'invalid dashboard token'));
         return;
     }
