@@ -147,14 +147,97 @@
   margin-top: 2px;
 }
 
+/* assistant 메시지 본문 + 컨택 카드를 묶는 컨테이너 */
+.msgBody {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 82%;
+  min-width: 0;
+}
+
 /* 말풍선 */
 .bubble {
-  max-width: 82%;
+  max-width: 100%;
   padding: 12px 16px;
   border-radius: 18px;
   font-size: 14px;
   line-height: 1.65;
   word-break: keep-all;
+}
+
+/* 학과 컨택 카드 — 답변 아래 별도 표시 */
+.contactCard {
+  background: rgba(201, 162, 126, 0.08);
+  border: 1px solid rgba(201, 162, 126, 0.35);
+  border-radius: 14px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.contactHead {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.contactDept {
+  color: var(--gold);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: -0.2px;
+}
+
+.contactNote {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.contactRows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.contactRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 7px 11px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  text-decoration: none;
+  color: var(--text);
+  font-size: 12.5px;
+  transition: background 0.15s, border-color 0.15s;
+  border: 1px solid transparent;
+  gap: 12px;
+}
+
+.contactRow:hover {
+  background: rgba(201, 162, 126, 0.12);
+  border-color: rgba(201, 162, 126, 0.3);
+}
+
+.contactRow:active {
+  background: rgba(201, 162, 126, 0.18);
+}
+
+.contactLabel {
+  color: var(--muted);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.contactValue {
+  color: var(--text);
+  font-weight: 500;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  word-break: break-all;
 }
 
 .assistantBubble {
@@ -321,6 +404,23 @@
   .userArea {
     justify-content: flex-end;
     gap: 6px;
+  }
+
+  .msgBody {
+    max-width: 88%;
+  }
+
+  .contactCard {
+    padding: 9px 12px;
+  }
+
+  .contactRow {
+    font-size: 12px;
+    padding: 6px 10px;
+  }
+
+  .contactValue {
+    font-size: 12px;
   }
 
   .userGreeting {

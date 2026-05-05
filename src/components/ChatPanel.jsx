@@ -9,6 +9,39 @@ function TypingDots() {
   )
 }
 
+function ContactCard({ contact }) {
+  if (!contact) return null
+  const { dept, phone, homepage, chairEmail, note } = contact
+  return (
+    <div className={styles.contactCard}>
+      <div className={styles.contactHead}>
+        <span className={styles.contactDept}>{dept}</span>
+        {note && <span className={styles.contactNote}>{note}</span>}
+      </div>
+      <div className={styles.contactRows}>
+        {phone && (
+          <a className={styles.contactRow} href={`tel:${phone}`}>
+            <span className={styles.contactLabel}>학과 사무실</span>
+            <span className={styles.contactValue}>{phone}</span>
+          </a>
+        )}
+        {homepage && (
+          <a className={styles.contactRow} href={homepage} target="_blank" rel="noopener noreferrer">
+            <span className={styles.contactLabel}>학과 홈페이지</span>
+            <span className={styles.contactValue}>{homepage.replace(/^https?:\/\//, '').replace(/\/$/, '')}</span>
+          </a>
+        )}
+        {chairEmail && (
+          <a className={styles.contactRow} href={`mailto:${chairEmail}`}>
+            <span className={styles.contactLabel}>학과장 이메일</span>
+            <span className={styles.contactValue}>{chairEmail}</span>
+          </a>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function Message({ msg }) {
   const isUser = msg.role === 'user'
   return (
@@ -16,8 +49,11 @@ function Message({ msg }) {
       {!isUser && (
         <div className={styles.avatar}>AI</div>
       )}
-      <div className={`${styles.bubble} ${isUser ? styles.userBubble : styles.assistantBubble}`}>
-        {msg.text === null ? <TypingDots /> : msg.text}
+      <div className={styles.msgBody}>
+        <div className={`${styles.bubble} ${isUser ? styles.userBubble : styles.assistantBubble}`}>
+          {msg.text === null ? <TypingDots /> : msg.text}
+        </div>
+        {!isUser && msg.contact && <ContactCard contact={msg.contact} />}
       </div>
     </div>
   )
