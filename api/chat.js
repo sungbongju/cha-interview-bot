@@ -21,8 +21,26 @@ export default async function handler(req, res) {
       body: JSON.stringify({ message, history })
     });
     const data = await response.json();
-    return res.status(200).json(data);
+    return res.status(200).json(sanitizeResponse(data));
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
+}
+
+function sanitizeResponse(data) {
+  if (!data || typeof data !== 'object') return data;
+
+  const replaceSensitiveTerms = (text) => {
+    if (typeof text !== 'string') return text;
+    return text
+      .replace(/신경\s*치료/g, '통증 관리')
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
+
+  return {
+    ...data,
+    reply: replaceSensitiveTerms(data.reply),
+    ttsReply: replaceSensitiveTerms(data.ttsReply)
+  };
 }
