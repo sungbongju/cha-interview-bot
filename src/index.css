@@ -1,6 +1,23 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* ── Light theme (default) ── */
 :root {
+  --bg:        #f5f6f8;
+  --surface:   #ffffff;
+  --panel:     #ffffff;
+  --border:    rgba(0,0,0,0.08);
+  --gold:      #b88a5e;
+  --gold-dim:  #8a6b52;
+  --text:      #1a1d24;
+  --muted:     #6b7280;
+  --blue:      #2563eb;
+  --green:     #16a34a;
+  --radius:    16px;
+  --scrollbar: rgba(0,0,0,0.18);
+}
+
+/* ── Dark theme (opt-in via [data-theme="dark"]) ── */
+[data-theme="dark"] {
   --bg:        #07080d;
   --surface:   #0e1018;
   --panel:     #13161f;
@@ -11,7 +28,7 @@
   --muted:     #5a6072;
   --blue:      #3b82f6;
   --green:     #22c55e;
-  --radius:    16px;
+  --scrollbar: rgba(255,255,255,0.12);
 }
 
 html, body, #root {
@@ -20,8 +37,9 @@ html, body, #root {
   background: var(--bg);
   color: var(--text);
   overflow: hidden;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 2px; }

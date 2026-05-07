@@ -151,6 +151,19 @@ export default function App() {
   const [autoListen, setAutoListen]     = useState(false)
   const [user, setUser]                 = useState(getUser())     // 로그인된 사용자 (없으면 null = 익명)
   const [conversationMode, setConversationMode] = useState('ftf')  // ftf | sts | ttt
+  const [theme, setTheme]               = useState(() => {
+    if (typeof window === 'undefined') return 'light'
+    return localStorage.getItem('theme') === 'dark' ? 'dark' : 'light'
+  })
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+    localStorage.setItem('theme', theme)
+  }, [theme])
+
+  const toggleTheme = useCallback(() => {
+    setTheme(prev => (prev === 'light' ? 'dark' : 'light'))
+  }, [])
   const [cameraStream, setCameraStream] = useState(null)
   // 첫 접속 시 자동으로 로그인 모달 — 저장된 토큰(=user)이 있으면 안 띄움
   const [authOpen, setAuthOpen]         = useState(() => !getUser())
@@ -864,6 +877,8 @@ export default function App() {
           setSurveyModesUsed(modes)
           setSurveyOpen(true)
         }}
+        theme={theme}
+        onToggleTheme={toggleTheme}
       />
       <AuthModal
         open={authOpen}

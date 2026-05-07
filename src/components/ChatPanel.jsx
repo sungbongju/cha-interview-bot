@@ -72,7 +72,9 @@ export default function ChatPanel({
   user,
   onLoginClick,
   onLogout,
-  onOpenSurvey
+  onOpenSurvey,
+  theme = 'light',
+  onToggleTheme
 }) {
   const [input, setInput]       = useState('')
   const bottomRef               = useRef(null)
@@ -115,6 +117,13 @@ export default function ChatPanel({
           <span className={styles.headerTitle}>면담 대화</span>
         </div>
         <div className={styles.userArea}>
+          <button
+            type="button"
+            onClick={onToggleTheme}
+            className={styles.themeBtn}
+            title={theme === 'dark' ? '라이트 모드로 전환' : '다크 모드로 전환'}
+            aria-label="테마 전환"
+          >{theme === 'dark' ? '☀️' : '🌙'}</button>
           <button
             type="button"
             onClick={onOpenSurvey}
