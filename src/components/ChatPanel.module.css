@@ -4,7 +4,9 @@
   flex-direction: column;
   background: var(--panel);
   border-left: 1px solid var(--border);
+  box-shadow: -8px 0 24px rgba(58, 40, 23, 0.05);
   overflow: hidden;
+  z-index: 1;
 }
 
 /* 헤더 */
@@ -78,19 +80,22 @@
 }
 
 .loginBtn {
-  background: var(--text);
-  border: none;
-  color: var(--bg);
+  background: var(--gold);
+  border: 1px solid var(--gold-dim);
+  color: #fff;
   border-radius: 6px;
   padding: 6px 14px;
   font-size: 13px;
+  font-weight: 600;
   font-family: inherit;
   cursor: pointer;
-  transition: opacity 0.15s;
+  transition: background 0.15s, transform 0.15s;
+  box-shadow: 0 2px 6px rgba(184, 138, 94, 0.25);
 }
 
 .loginBtn:hover {
-  opacity: 0.85;
+  background: var(--gold-dim);
+  transform: translateY(-1px);
 }
 
 .surveyBtn {

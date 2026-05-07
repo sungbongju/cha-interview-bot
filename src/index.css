@@ -1,34 +1,75 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-/* ── Light theme (default) ── */
+/* ── Light theme (default) — beige + brown palette ── */
 :root {
-  --bg:        #f5f6f8;
-  --surface:   #ffffff;
-  --panel:     #ffffff;
-  --border:    rgba(0,0,0,0.08);
-  --gold:      #b88a5e;
-  --gold-dim:  #8a6b52;
-  --text:      #1a1d24;
-  --muted:     #6b7280;
-  --blue:      #2563eb;
-  --green:     #16a34a;
-  --radius:    16px;
-  --scrollbar: rgba(0,0,0,0.18);
+  --bg:            #fdfaf3;       /* 채팅 패널과 통일된 웜 화이트 */
+  --surface:       #ffffff;
+  --panel:         #fdfaf3;       /* 채팅 패널 */
+  --border:        rgba(139, 90, 43, 0.18);
+  --gold:          #b88a5e;
+  --gold-dim:      #8a6b52;
+  --text:          #3a2817;       /* 에스프레소 브라운 */
+  --muted:         #8a7560;       /* 웜 그레이 브라운 */
+  --blue:          #2563eb;
+  --green:         #16a34a;
+  --radius:        16px;
+  --scrollbar:     rgba(139, 90, 43, 0.28);
+
+  /* Stage(영상·아바타·음성·텍스트 카드) 표면 — 라이트 브라운 */
+  --card-bg-from:  #f4e6cf;       /* 매우 라이트한 베이지 탠 */
+  --card-bg-to:    #e0c8a4;       /* 따뜻한 라이트 탠 */
+  --media-bg:      #d4b896;       /* 라이트 브라운 (빈 비디오 스테이지) */
+  --stage-text:    #3a2817;       /* 라이트 브라운 위 에스프레소 텍스트 */
+  --stage-muted:   #6b4f33;       /* 중간 다크 브라운 */
+
+  --overlay-soft:  rgba(139, 90, 43, 0.06);
+  --overlay-track: rgba(139, 90, 43, 0.20);
+  --shadow-card:   0 18px 50px rgba(58, 40, 23, 0.14);
+  --shadow-media:  0 14px 42px rgba(58, 40, 23, 0.22);
+
+  /* Visualizer bars (warm earth tones for light theme) */
+  --bar-grad-1:    linear-gradient(to top, #8a6b52, #b88a5e 52%, #d4a574 82%, #f0d4a8);
+  --bar-grad-2:    linear-gradient(to top, #5c4530, #8a6b52 62%, #c9a878);
+  --bar-grad-3:    linear-gradient(to top, #7a5a3a, #b88a5e 58%, #e0c8a4);
+  --bar-grad-4:    linear-gradient(to top, #5c4530, #b88a5e 62%, #d4a574);
+  --bar-grad-5:    linear-gradient(to top, #b88a5e, #f0d4a8);
+  --bar-shadow:    0 0 7px rgba(184, 138, 94, 0.35);
+  --vis-glow:      drop-shadow(0 0 14px rgba(184, 138, 94, 0.32)) drop-shadow(0 0 28px rgba(139, 90, 43, 0.18));
 }
 
 /* ── Dark theme (opt-in via [data-theme="dark"]) ── */
 [data-theme="dark"] {
-  --bg:        #07080d;
-  --surface:   #0e1018;
-  --panel:     #13161f;
-  --border:    rgba(255,255,255,0.07);
-  --gold:      #c9a27e;
-  --gold-dim:  #8a6b52;
-  --text:      #e8e9ed;
-  --muted:     #5a6072;
-  --blue:      #3b82f6;
-  --green:     #22c55e;
-  --scrollbar: rgba(255,255,255,0.12);
+  --bg:            #07080d;
+  --surface:       #0e1018;
+  --panel:         #13161f;
+  --border:        rgba(255,255,255,0.07);
+  --gold:          #c9a27e;
+  --gold-dim:      #8a6b52;
+  --text:          #e8e9ed;
+  --muted:         #5a6072;
+  --blue:          #3b82f6;
+  --green:         #22c55e;
+  --scrollbar:     rgba(255,255,255,0.12);
+
+  --card-bg-from:  rgba(20,23,35,0.96);
+  --card-bg-to:    rgba(7,8,13,0.98);
+  --media-bg:      #0a0b10;
+  --stage-text:    #e8e9ed;
+  --stage-muted:   #5a6072;
+
+  --overlay-soft:  rgba(255,255,255,0.04);
+  --overlay-track: rgba(255,255,255,0.1);
+  --shadow-card:   0 24px 70px rgba(0,0,0,0.36);
+  --shadow-media:  0 0 60px rgba(0,0,0,0.6);
+
+  /* Visualizer bars (vibrant neon for dark theme) */
+  --bar-grad-1:    linear-gradient(to top, #22c55e, #22d3ee 52%, #8b5cf6 82%, #d946ef);
+  --bar-grad-2:    linear-gradient(to top, #2dd4bf, #3b82f6 62%, #8b5cf6);
+  --bar-grad-3:    linear-gradient(to top, #22c55e, #14b8a6 58%, #06b6d4);
+  --bar-grad-4:    linear-gradient(to top, #06b6d4, #2563eb 62%, #9333ea);
+  --bar-grad-5:    linear-gradient(to top, #8b5cf6, #d946ef);
+  --bar-shadow:    0 0 7px rgba(34, 211, 238, 0.32);
+  --vis-glow:      drop-shadow(0 0 14px rgba(34, 211, 238, 0.22)) drop-shadow(0 0 28px rgba(124, 58, 237, 0.12));
 }
 
 html, body, #root {
